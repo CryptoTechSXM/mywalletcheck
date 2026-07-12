@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traced Theft Report</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap');
+
+:root{
+  --ink:#14181D; --ink-soft:#4A5A6A; --ink-faint:#8A97A3;
+  --paper:#EDF0F0; --surface:#FFFFFF; --line:#D3D9DC; --line-soft:#E4E8E9;
+  --clear:#1F6F5C; --clear-bg:#E6EFEC;
+  --warn:#B4761F; --warn-bg:#F6EEE0;
+  --crit:#A4302A; --crit-bg:#F5E6E4;
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--paper);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.wrap{max-width:940px;margin:0 auto;padding:0 24px}
+
+.masthead{border-bottom:1px solid var(--line);background:var(--surface)}
+.masthead .wrap{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding:20px 24px}
+.mark{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--surface);background:var(--ink);padding:5px 8px}
+.masthead h1{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.01em}
+.masthead p{color:var(--ink-soft);font-size:14px;margin-left:auto}
+.masthead a{color:var(--ink-soft);font-size:13px;font-family:var(--mono);text-decoration:none;border-bottom:1px solid var(--line)}
+.masthead a:hover{color:var(--ink)}
+
+/* clock banner — the signature: time is the only variable you control */
+.clock{background:var(--crit-bg);border-bottom:1px solid rgba(164,48,42,.25)}
+.clock .wrap{display:flex;gap:18px;align-items:baseline;padding:16px 24px;flex-wrap:wrap}
+.clock .stamp{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--crit);font-weight:600;white-space:nowrap}
+.clock p{font-size:14px;color:var(--ink);max-width:70ch}
+.clock strong{font-weight:600}
+
+.intro-block{padding:52px 0 40px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:14px}
+.intro-block h2{font-family:var(--display);font-weight:700;letter-spacing:-.025em;font-size:clamp(28px,4.6vw,42px);line-height:1.08;max-width:19ch;margin-bottom:16px}
+.lede{max-width:64ch;color:var(--ink-soft);font-size:16px}
+.lede strong{color:var(--ink);font-weight:500}
+
+section.block{padding:56px 0;border-top:1px solid var(--line)}
+section.block:nth-of-type(even){background:var(--surface)}
+.block h2{font-family:var(--display);font-size:clamp(23px,3.2vw,30px);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
+.block .intro{color:var(--ink-soft);max-width:64ch;margin-bottom:32px;font-size:15.5px}
+
+/* first-hour checklist — genuinely ordered */
+.steps{list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:52px 1fr;gap:20px;padding:20px 0;border-top:1px solid var(--line-soft)}
+.steps li:first-child{border-top:none;padding-top:0}
+.steps li::before{content:counter(s,decimal-leading-zero);font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-faint);letter-spacing:.06em;padding-top:3px}
+.steps h3{font-size:16.5px;font-weight:600;margin-bottom:5px}
+.steps p{font-size:14.5px;color:var(--ink-soft);max-width:62ch}
+.steps .flag{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--crit);margin-top:8px;display:inline-block}
+.steps .flag.ok{color:var(--clear)}
+
+/* builder */
+.builder{border:1px solid var(--line);background:var(--surface);padding:24px}
+section.block:nth-of-type(even) .builder{background:var(--paper)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.field label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.field .hint{font-size:12.5px;color:var(--ink-faint);font-family:var(--body);text-transform:none;letter-spacing:0}
+.field input,.field select,.field textarea{font-family:var(--mono);font-size:13.5px;color:var(--ink);border:1px solid var(--line);background:var(--paper);padding:11px 12px;width:100%}
+section.block:nth-of-type(even) .field input,
+section.block:nth-of-type(even) .field select,
+section.block:nth-of-type(even) .field textarea{background:var(--surface)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--ink)}
+.field textarea{resize:vertical;min-height:70px;font-family:var(--body);font-size:14px}
+
+.divider{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:26px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line-soft)}
+
+/* hop chain */
+.hops{list-style:none;position:relative;padding-left:24px;margin-bottom:14px}
+.hops::before{content:'';position:absolute;left:5px;top:10px;bottom:26px;width:1px;background:var(--line)}
+.hop{position:relative;padding-bottom:16px}
+.hop::before{content:'';position:absolute;left:-24px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--surface);border:2px solid var(--ink-faint)}
+section.block:nth-of-type(even) .hop::before{background:var(--paper)}
+.hop.origin::before{background:var(--crit);border-color:var(--crit)}
+.hop.exchange::before{background:var(--warn);border-color:var(--warn)}
+.hop-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+.hop.origin .hop-label{color:var(--crit)}
+.hop.exchange .hop-label{color:var(--warn)}
+.hop-row{display:flex;gap:10px;flex-wrap:wrap}
+.hop-row input{flex:1 1 260px;font-family:var(--mono);font-size:13px;border:1px solid var(--line);background:var(--paper);padding:10px 12px}
+section.block:nth-of-type(even) .hop-row input{background:var(--surface)}
+.hop-row input:focus{border-color:var(--ink)}
+.rm{font-family:var(--mono);font-size:12px;background:none;border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;padding:0 12px}
+.rm:hover{border-color:var(--crit);color:var(--crit)}
+
+.btn{font-family:var(--body);font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:var(--surface);padding:12px 22px;transition:opacity .15s}
+.btn:hover{opacity:.82}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn-ghost:hover{background:var(--line-soft);opacity:1}
+.btn-sm{font-size:13px;padding:9px 16px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+
+.out{margin-top:26px}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:0}
+.tab{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--ink-faint);cursor:pointer;padding:12px 16px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+textarea.report{width:100%;min-height:340px;font-family:var(--mono);font-size:12px;line-height:1.62;border:1px solid var(--line);border-top:none;background:var(--surface);color:var(--ink);padding:16px;resize:vertical}
+section.block:nth-of-type(even) textarea.report{background:var(--paper)}
+
+/* channels */
+.channels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.channel{border:1px solid var(--line);background:var(--paper);padding:20px}
+section.block:nth-of-type(even) .channel{background:var(--surface)}
+.channel .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px}
+.channel h3{font-size:15.5px;font-weight:600;margin-bottom:5px}
+.channel p{font-size:13.5px;color:var(--ink-soft)}
+
+.caution{border:1px solid rgba(164,48,42,.28);background:var(--crit-bg);padding:20px 22px;margin-top:34px;max-width:76ch}
+.caution h3{font-family:var(--body);font-size:16px;font-weight:600;color:var(--crit);margin-bottom:8px}
+.caution p{font-size:14px;color:var(--ink);margin-bottom:9px}
+.caution p:last-child{margin-bottom:0}
+
+.limits{list-style:none;max-width:70ch}
+.limits li{padding:13px 0 13px 26px;position:relative;font-size:14.5px;color:var(--ink-soft);border-top:1px solid var(--line-soft)}
+.limits li:first-child{border-top:none}
+.limits li::before{content:'—';position:absolute;left:0;color:var(--ink-faint);font-family:var(--mono)}
+.limits strong{color:var(--ink);font-weight:600}
+
+footer{border-top:1px solid var(--line);background:var(--surface);padding:34px 0;font-size:13px;color:var(--ink-faint)}
+footer p{max-width:74ch;margin-bottom:8px}
+footer .mono{font-family:var(--mono);font-size:11.5px}
+
+@media (max-width:620px){
+  .masthead p,.masthead a{margin-left:0;flex-basis:100%}
+  .steps li{grid-template-columns:1fr;gap:6px}
+  .steps li::before{padding-top:0}
+  .btn{width:100%}
+  .actions .btn{width:auto;flex:1 1 auto}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <span class="mark">Shield</span>
+    <h1>Traced Theft Report</h1>
+    <a href="index.html">← Home</a>
+    <a href="delegation-check.html" style="margin-left:0">Delegation check</a>
+  </div>
+</header>
+
+<div class="clock">
+  <div class="wrap">
+    <span class="stamp">Time is the variable</span>
+    <p>Exchanges can freeze funds sitting in a deposit account. They cannot return funds that have already been withdrawn — and stolen crypto is often moved out within hours. <strong>File with the exchange and the police today, even with incomplete information.</strong> You can send them more later. You cannot get back time.</p>
+  </div>
+</div>
+
+<main>
+
+<div class="wrap intro-block">
+  <div class="eyebrow">For thefts with a suspect and a cash-out point</div>
+  <h2>When someone had your device, and the money went to an exchange.</h2>
+  <p class="lede">
+    This is for a different kind of theft than an anonymous drainer: someone with <strong>physical or remote access</strong>
+    to a device took the keys — a repair technician, a support session, a shared computer, a household member — and moved
+    the funds through a few wallets into a centralized exchange. That path is the best case you can have, because an exchange
+    holds identity documents for the account that received your money, and <strong>a short list of people had access to your device</strong>.
+    Both facts are things investigators can act on. Neither is something you should act on yourself.
+  </p>
+</div>
+
+<!-- ===== FIRST HOURS ===== -->
+<section class="block" id="first">
+  <div class="wrap">
+    <h2>Do these first, in this order</h2>
+    <p class="intro">The first three matter more than everything on the rest of this page. Do them before you finish reading.</p>
+
+    <ol class="steps">
+      <li><div>
+        <h3>Move any remaining funds to a new wallet</h3>
+        <p>Made on a device the suspect never touched. If the stolen keys still control anything anywhere, assume it is being watched. Do this before you tell anyone what you know.</p>
+      </div></li>
+
+      <li><div>
+        <h3>Contact the exchange that received the funds</h3>
+        <p>Use their law-enforcement or compliance channel, not normal support. State plainly: stolen funds were deposited to an account on your platform, here is the deposit address and the transaction hash, please preserve records and freeze pending withdrawals. Most exchanges will not freeze on a victim's word alone, but nearly all will <em>preserve the account records</em> — and that preservation is what makes the case winnable later.</p>
+        <span class="flag">Do this even before you have a police report number</span>
+      </div></li>
+
+      <li><div>
+        <h3>File a police report and get the report number</h3>
+        <p>Local police for the physical-access crime, and your national cybercrime unit for the theft. The exchange will almost always require an official report number, and in most jurisdictions a subpoena or preservation order, before releasing account identity to anyone. Your report is what starts that.</p>
+        <span class="flag">The report number is the key that unlocks everything else</span>
+      </div></li>
+
+      <li><div>
+        <h3>Preserve the device — do not wipe or reuse it</h3>
+        <p>Power it off and put it somewhere safe. Do not reinstall, do not run cleanup tools, do not keep using it. Forensic examination can show what was accessed and when — that is the thread tying the person who had custody to the theft. Write down the dates you dropped it off and picked it up, who you dealt with, and any receipt or work order.</p>
+        <span class="flag ok">This device is the strongest evidence in the case</span>
+      </div></li>
+
+      <li><div>
+        <h3>Say nothing to the suspect or in public</h3>
+        <p>No confrontation, no online review, no naming them in the community. Tipping them off gives them time to move funds, wipe machines, and close accounts. It can also expose you to liability if the person you suspect turns out not to be the person who did it — a shop has employees, contractors, and sometimes a break-in of its own. Narrowing the suspect list is the investigators' job.</p>
+        <span class="flag">Confrontation destroys cases and hurts innocent people</span>
+      </div></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===== BUILDER ===== -->
+<section class="block" id="builder">
+  <div class="wrap">
+    <h2>Build the report</h2>
+    <p class="intro">
+      Fill in what you know. Blanks are fine — send it anyway and follow up. Nothing you type here leaves your browser;
+      the report is generated on your own device for you to copy into the exchange's and the police's own forms.
+    </p>
+
+    <div class="builder">
+      <div class="divider">The victim</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="vName">Full name</label>
+          <input id="vName" type="text" placeholder="As it appears on your ID">
+        </div>
+        <div class="field">
+          <label for="vContact">Email or phone</label>
+          <input id="vContact" type="text" placeholder="How investigators reach you">
+        </div>
+      </div>
+      <div class="field">
+        <label for="vWallet">Your wallet address <span class="hint">The one the funds were taken from</span></label>
+        <input id="vWallet" type="text" spellcheck="false" placeholder="0x…">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="vChain">Network</label>
+          <select id="vChain">
+            <option>Ethereum</option><option>BNB Chain</option><option>Polygon</option>
+            <option>Bitcoin</option><option>Solana</option><option>Arbitrum</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="vAmount">Amount stolen</label>
+          <input id="vAmount" type="text" placeholder="e.g. 2.4 ETH (~$6,100 at the time)">
+        </div>
+      </div>
+      <div class="field">
+        <label for="vWhen">Date and time of the theft <span class="hint">From the transaction, in UTC if you can</span></label>
+        <input id="vWhen" type="text" spellcheck="false" placeholder="2026-03-24 08:41 UTC">
+      </div>
+
+      <div class="divider">How access was obtained</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="aType">Type of access</label>
+          <select id="aType">
+            <option>Device given to a repair shop or technician</option>
+            <option>Remote support / screen-sharing session</option>
+            <option>Shared or public computer</option>
+            <option>Device stolen or lost</option>
+            <option>Person with household or workplace access</option>
+            <option>Unknown</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="aWindow">Dates they had access</label>
+          <input id="aWindow" type="text" placeholder="Dropped off 2026-03-08, collected 2026-03-11">
+        </div>
+      </div>
+      <div class="field">
+        <label for="aWho">Business or person who had custody <span class="hint">Name and address, from the receipt or work order. State facts only — that they had custody, not that they took it.</span></label>
+        <textarea id="aWho" placeholder="Name of shop, address, work order number, name of any staff you dealt with"></textarea>
+      </div>
+      <div class="field">
+        <label for="aKeys">Where the keys were on the device <span class="hint">Seed phrase in a text file or photo? Browser wallet extension? Password manager?</span></label>
+        <textarea id="aKeys" placeholder="Be honest and specific — this establishes how the theft was possible"></textarea>
+      </div>
+
+      <div class="divider">Where the money went</div>
+      <p class="lede" style="font-size:14px;margin-bottom:16px;max-width:62ch">
+        Follow the funds on a block explorer, one transfer at a time, and paste each address in order. Stop when you reach an
+        address the explorer labels with an exchange's name — that is the cash-out point, and it is the address the exchange needs.
+      </p>
+
+      <ul class="hops" id="hops">
+        <li class="hop origin">
+          <div class="hop-label">Taken from — your wallet</div>
+          <div class="hop-row"><input id="hopOrigin" type="text" spellcheck="false" placeholder="Filled from your wallet address above" readonly></div>
+        </li>
+      </ul>
+      <button class="btn btn-ghost btn-sm" type="button" id="addHop">+ Add a hop</button>
+
+      <div class="divider">The cash-out point</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="exName">Exchange</label>
+          <input id="exName" type="text" placeholder="Binance, Coinbase, OKX, Kraken…">
+        </div>
+        <div class="field">
+          <label for="exAddr">Exchange deposit address</label>
+          <input id="exAddr" type="text" spellcheck="false" placeholder="0x…">
+        </div>
+      </div>
+      <div class="field">
+        <label for="txs">Transaction hashes <span class="hint">One per line, in order, from the theft through to the exchange deposit</span></label>
+        <textarea id="txs" spellcheck="false" placeholder="0x…&#10;0x…&#10;0x…" style="font-family:var(--mono);font-size:12.5px"></textarea>
+      </div>
+      <div class="field">
+        <label for="caseNo">Police report number <span class="hint">Leave blank and send now if you don't have it yet</span></label>
+        <input id="caseNo" type="text" placeholder="e.g. IC3 complaint ID, or local case number">
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="button" id="gen">Generate reports</button>
+        <button class="btn btn-ghost" type="button" id="demo">Fill with an example</button>
+      </div>
+    </div>
+
+    <div class="out">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="ex">For the exchange</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="le">For law enforcement</button>
+      </div>
+      <textarea class="report" id="reportBox" spellcheck="false" readonly>Fill in the form above and select Generate reports.</textarea>
+      <div class="actions">
+        <button class="btn" type="button" id="copy">Copy this report</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== WHERE TO SEND ===== -->
+<section class="block" id="send">
+  <div class="wrap">
+    <h2>Where to send it</h2>
+    <p class="intro">Send to all of these on the same day. They do different jobs and none replaces another.</p>
+
+    <div class="channels">
+      <div class="channel">
+        <div class="lbl">Freezes the money</div>
+        <h3>The exchange</h3>
+        <p>Find their law-enforcement, compliance, or fraud channel — search their support site for "law enforcement request." Regular support tickets sit in a queue for days. Ask them to preserve records and hold pending withdrawals. Give them the deposit address and the transaction hashes.</p>
+      </div>
+      <div class="channel">
+        <div class="lbl">Opens the case</div>
+        <h3>Local police</h3>
+        <p>The physical-access element is a conventional crime with a conventional suspect list, and it is what local police can genuinely investigate. Bring the device, the receipt or work order, and the dates.</p>
+      </div>
+      <div class="channel">
+        <div class="lbl">Compels the records</div>
+        <h3>National cybercrime unit</h3>
+        <p>In the US, the FBI's IC3 at ic3.gov. Elsewhere, your national police cybercrime reporting line. They are the ones who can subpoena the exchange for the identity behind the receiving account.</p>
+      </div>
+      <div class="channel">
+        <div class="lbl">Warns the next person</div>
+        <h3>Chainabuse and block explorers</h3>
+        <p>Report the thief's addresses so they carry a public warning label. This does not recover funds; it makes the addresses harder to use and helps analysts connect cases.</p>
+      </div>
+    </div>
+
+    <div class="caution">
+      <h3>Two mistakes that end cases</h3>
+      <p><strong>Contacting the suspect.</strong> Not a message, not a review, not a mutual friend, not a post. The moment they know, funds move and drives get wiped. Let the police make the approach.</p>
+      <p><strong>Paying a recovery service.</strong> Anyone who contacts you offering to recover stolen crypto for a fee is running a second theft targeting the people who suffered the first. No private company can reverse a blockchain transaction. Legitimate asset recovery happens through law enforcement and the courts, and it starts with the report you are writing now.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== EXPECTATIONS ===== -->
+<section class="block" id="expect">
+  <div class="wrap">
+    <h2>What to expect, honestly</h2>
+    <p class="intro">You deserve a truthful picture rather than false hope or premature despair.</p>
+    <ul class="limits">
+      <li><strong>Recovery is possible here, and it is not likely.</strong> Cases with a named custodian and an exchange cash-out are the ones that sometimes end in charges and restitution — far better odds than an anonymous drainer. But it takes months, it depends on the exchange's jurisdiction, and most cases still end without the money back.</li>
+      <li><strong>The exchange will not tell you who owns the account.</strong> They are legally barred from it. They will tell the police. This feels like a wall and is actually the system working.</li>
+      <li><strong>A two-week delay between access and theft is normal.</strong> Someone who copies a seed phrase often waits, precisely so the theft does not point at the last person who touched the machine. The delay is a pattern, not an alibi — put the dates in the report and let the investigators weigh it.</li>
+      <li><strong>You may be wrong about who did it.</strong> Repair shops have multiple staff, contractors, and sometimes their own break-ins. Malware picked up long before the drop-off can look identical from the outside. Report what you know to be true — who had custody, and when — and let the evidence decide the rest.</li>
+      <li><strong>Prevention is the only reliable protection.</strong> A hardware wallet would have made this theft impossible: the keys never leave the device, so nobody with your laptop can take them. A seed phrase written on paper and kept out of the house is the low-cost version. Never store a recovery phrase in a file, a photo, a notes app, or a password manager on a machine you might one day hand to a stranger.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Everything you type on this page stays in your browser. Nothing is submitted, stored, or transmitted anywhere.</p>
+    <p>This tool helps you document a theft for the authorities. It does not identify suspects, and no one should be publicly accused on the strength of what it produces. Attribution belongs to investigators who can compel records and examine devices.</p>
+    <p class="mono">Not legal advice. Community-maintained.</p>
+    <p class="mono" style="margin-top:10px">Free to use, always. If it helped and you'd like to support the hosting, <a href="index.html#support-link" style="color:var(--ink-soft);border-bottom:1px solid var(--line)">you can chip in</a> — never required, and we'll never ask for payment to show your result.</p>
+  </div>
+</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+let hopCount = 0;
+
+$("#vWallet").addEventListener("input", e => { $("#hopOrigin").value = e.target.value.trim(); });
+
+function addHop(value = "") {
+  hopCount++;
+  const li = document.createElement("li");
+  li.className = "hop";
+  li.innerHTML = `
+    <div class="hop-label">Hop ${hopCount} — intermediate wallet</div>
+    <div class="hop-row">
+      <input type="text" spellcheck="false" class="hopAddr" placeholder="0x…" value="${value.replace(/"/g,'')}">
+      <button class="rm" type="button" title="Remove this hop">Remove</button>
+    </div>`;
+  li.querySelector(".rm").addEventListener("click", () => { li.remove(); renumber(); });
+  $("#hops").appendChild(li);
+}
+function renumber(){
+  hopCount = 0;
+  document.querySelectorAll("#hops .hop:not(.origin)").forEach(li => {
+    hopCount++;
+    li.querySelector(".hop-label").textContent = `Hop ${hopCount} — intermediate wallet`;
+  });
+}
+$("#addHop").addEventListener("click", () => addHop());
+addHop();
+
+const val = id => ($(id).value || "").trim();
+const or = (v, fallback) => v ? v : fallback;
+
+function hops(){
+  return [...document.querySelectorAll(".hopAddr")].map(i => i.value.trim()).filter(Boolean);
+}
+function txList(){
+  return val("#txs").split("\n").map(s => s.trim()).filter(Boolean);
+}
+
+function flowDiagram(){
+  const chain = [
+    or(val("#vWallet"), "[your wallet]"),
+    ...hops(),
+    or(val("#exAddr"), "[exchange deposit address]")
+  ];
+  return chain.map((a, i) => {
+    const tag = i === 0 ? "  (victim)"
+             : i === chain.length - 1 ? `  (${or(val("#exName"), "exchange")} deposit)`
+             : `  (hop ${i})`;
+    return `  ${i === 0 ? "" : "  ↓\n  "}${a}${tag}`;
+  }).join("\n");
+}
+
+const REPORTS = {};
+
+function generate(){
+  const txs = txList();
+  const txBlock = txs.length ? txs.map((t,i) => `  ${String(i+1).padStart(2,"0")}. ${t}`).join("\n") : "  [to be provided]";
+  const caseLine = val("#caseNo") ? `Police report / case number: ${val("#caseNo")}` : "Police report number: filed, number to follow";
+
+  REPORTS.ex =
+`TO: Compliance / Law Enforcement Response Team, ${or(val("#exName"), "[exchange]")}
+SUBJECT: Stolen funds deposited to an account on your platform — request to preserve records and hold withdrawals
+
+I am the victim of a theft of cryptocurrency. Funds stolen from my wallet were
+transferred through intermediate addresses and deposited to an address controlled
+by your platform. I am asking you to preserve all records associated with the
+receiving account and to place a hold on pending withdrawals while law enforcement
+obtains the necessary legal process.
+
+VICTIM
+  Name: ${or(val("#vName"), "[name]")}
+  Contact: ${or(val("#vContact"), "[email or phone]")}
+  ${caseLine}
+
+THE THEFT
+  Victim wallet: ${or(val("#vWallet"), "[address]")}
+  Network: ${val("#vChain")}
+  Amount stolen: ${or(val("#vAmount"), "[amount]")}
+  Date and time: ${or(val("#vWhen"), "[date/time UTC]")}
+
+DEPOSIT ADDRESS ON YOUR PLATFORM
+  ${or(val("#exAddr"), "[deposit address]")}
+
+FLOW OF FUNDS
+${flowDiagram()}
+
+TRANSACTION HASHES
+${txBlock}
+
+REQUESTED ACTION
+  1. Preserve all account records, KYC documentation, IP and device logs, and
+     transaction history associated with the receiving account.
+  2. Place a hold on pending withdrawals from that account pending legal process.
+  3. Confirm receipt of this notice in writing, with a reference number.
+
+I understand you cannot disclose account holder information to me directly and I am
+not requesting that. Law enforcement will contact you through the appropriate legal
+channel. This notice is to ensure records are preserved before that happens.
+
+  ${or(val("#vName"), "[name]")}
+  ${new Date().toISOString().slice(0,10)}`;
+
+  REPORTS.le =
+`SUBJECT: Theft of cryptocurrency following unauthorized access to a personal device
+
+COMPLAINANT
+  Name: ${or(val("#vName"), "[name]")}
+  Contact: ${or(val("#vContact"), "[email or phone]")}
+
+SUMMARY
+  Cryptocurrency was stolen from my wallet after a third party had access to a
+  device on which my wallet credentials were stored. The stolen funds were moved
+  through ${hops().length || "[n]"} intermediate wallet(s) and deposited into an account at
+  ${or(val("#exName"), "[exchange]")}, a centralized exchange that holds identity
+  documentation for its account holders.
+
+THE ACCESS
+  Type of access: ${$("#aType").value}
+  Dates of access: ${or(val("#aWindow"), "[dates]")}
+  Party with custody of the device:
+    ${or(val("#aWho"), "[name and address of business or person]").replace(/\n/g, "\n    ")}
+  Where wallet credentials were stored on the device:
+    ${or(val("#aKeys"), "[describe]").replace(/\n/g, "\n    ")}
+
+  Note: I am reporting who had custody of the device and when. I am not in a
+  position to state who carried out the theft, and I have not contacted or
+  accused anyone.
+
+THE THEFT
+  Victim wallet: ${or(val("#vWallet"), "[address]")}
+  Network: ${val("#vChain")}
+  Amount stolen: ${or(val("#vAmount"), "[amount]")}
+  Date and time of theft: ${or(val("#vWhen"), "[date/time UTC]")}
+
+FLOW OF FUNDS
+${flowDiagram()}
+
+TRANSACTION HASHES
+${txBlock}
+
+EVIDENCE AVAILABLE
+  - The device itself, powered off and unaltered since the theft was discovered.
+  - Receipt / work order showing dates of custody.
+  - Public blockchain records for every transaction listed above, which are
+    permanent and independently verifiable by your investigators.
+
+REQUESTED ACTION
+  1. Serve legal process on ${or(val("#exName"), "[exchange]")} for the account records,
+     KYC identity documents, and access logs associated with deposit address
+     ${or(val("#exAddr"), "[deposit address]")}.
+  2. Forensic examination of the device to establish what was accessed during the
+     period of third-party custody.
+
+  ${or(val("#vName"), "[name]")}
+  ${new Date().toISOString().slice(0,10)}`;
+
+  show(currentTab);
+}
+
+let currentTab = "ex";
+function show(tab){
+  currentTab = tab;
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === tab)));
+  $("#reportBox").value = REPORTS[tab] || "Fill in the form above and select Generate reports.";
+}
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => show(t.dataset.tab)));
+$("#gen").addEventListener("click", generate);
+
+$("#demo").addEventListener("click", () => {
+  $("#vName").value = "A. Community Member";
+  $("#vContact").value = "member@example.org";
+  $("#vWallet").value = "0x2b1c4E7fA9d03B5c6E8a1F2d4C7b9A0e3D5f6C81";
+  $("#hopOrigin").value = $("#vWallet").value;
+  $("#vAmount").value = "2.41 ETH (approx. $6,100 at the time)";
+  $("#vWhen").value = "2026-03-24 08:41 UTC";
+  $("#aWindow").value = "Dropped off 2026-03-08, collected 2026-03-11";
+  $("#aWho").value = "Example Computer Repair, 14 High Street\nWork order #A-7741, dealt with front-desk staff";
+  $("#aKeys").value = "Recovery phrase was saved in a plain text file on the desktop, and a browser wallet extension was signed in.";
+  document.querySelectorAll("#hops .hop:not(.origin)").forEach(n => n.remove());
+  hopCount = 0;
+  addHop("0x9F3aD7c1B4e6082aC5d7E9f0B1a2C3d4E5f60718");
+  addHop("0x71C0eB4d8A2f9351C6b7D8e9F0a1B2c3D4e5F607");
+  $("#exName").value = "Example Exchange";
+  $("#exAddr").value = "0xE4c9B7a2D51f0836C7b9E0a1F2d3C4b5A6978012";
+  $("#txs").value = "0x8a1f6c3d9b2e0745af1c8d3b6e9027451cfa8d3b6e90274518a1f6c3d9b2e0745\n0x3d9b2e07458a1f6c3d9b2e0745af1c8d3b6e9027451cfa8d3b6e9027458a1f6c\n0xcfa8d3b6e90274518a1f6c3d9b2e0745af1c8d3b6e9027451cfa8d3b6e902745";
+  $("#caseNo").value = "";
+  generate();
+});
+
+$("#copy").addEventListener("click", async () => {
+  const btn = $("#copy"), t = $("#reportBox");
+  try { await navigator.clipboard.writeText(t.value); }
+  catch { t.removeAttribute("readonly"); t.select(); document.execCommand("copy"); t.setAttribute("readonly",""); }
+  btn.textContent = "Copied";
+  setTimeout(() => btn.textContent = "Copy this report", 1600);
+});
+</script>
+</body>
+</html>

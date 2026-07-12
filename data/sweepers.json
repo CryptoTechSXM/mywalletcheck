@@ -1,0 +1,18 @@
+{
+  "$comment": "Known-malicious EIP-7702 delegate (drainer) contracts. Adding an entry protects every user at once. Confirm each address independently before merging: a false positive tells a safe user to abandon a good wallet; a miss gives false comfort. Every entry should cite the evidence that confirmed it.",
+  "updated": "2026-03-24",
+  "contracts": {
+    "0x4323334d79239ef30e3202f6b0dc4ae2cbf4c242": {
+      "chain": "bsc",
+      "firstSeen": "2026-03-08",
+      "note": "Delegate-and-drain sweeper. Observed across many victims.",
+      "evidence": "Confirmed via victim authorization list and drain tx 0x92f6b970b9742a936dd77c16cc095f7360d5485cdec444b00096366f08a6c4ad"
+    },
+    "0x717594f59b0ca8e81a201ef9c28daca608a093a3": {
+      "chain": "polygon",
+      "firstSeen": "2026-03-10",
+      "note": "Delegate-and-drain sweeper. Deployed by 0xE0a4C31e..., which was itself later swept.",
+      "evidence": "Confirmed via victim authorization list and drain tx 0xda8dda9ee71cb084c027dbeb9efc6f65a9c2769b84017f64e9d6a1293fb89cab"
+    }
+  }
+}

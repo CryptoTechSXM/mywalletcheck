@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WalletCheck — Is your wallet safe?</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="A free, read-only tool to check whether a wallet has been handed to an attacker, harden it, and report theft. No wallet connection. No seed phrase, ever.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap');
+
+:root{
+  --ink:#14181D; --ink-soft:#4A5A6A; --ink-faint:#8A97A3;
+  --paper:#EDF0F0; --surface:#FFFFFF; --line:#D3D9DC; --line-soft:#E4E8E9;
+  --clear:#1F6F5C; --clear-bg:#E6EFEC;
+  --warn:#B4761F; --warn-bg:#F6EEE0;
+  --crit:#A4302A; --crit-bg:#F5E6E4;
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--paper);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px}
+a{color:inherit}
+
+/* header */
+.masthead{border-bottom:1px solid var(--line);background:var(--surface)}
+.masthead .wrap{display:flex;align-items:center;gap:14px;padding:18px 24px}
+.mark{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--surface);background:var(--ink);padding:5px 8px}
+.masthead h1{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-.01em}
+.masthead .trust{margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--clear);text-transform:uppercase}
+
+/* hero */
+.hero{padding:72px 0 20px;text-align:center}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:20px}
+.hero h2{font-family:var(--display);font-weight:700;letter-spacing:-.03em;font-size:clamp(34px,6vw,60px);line-height:1.02;max-width:16ch;margin:0 auto 22px}
+.hero .lede{max-width:56ch;margin:0 auto;color:var(--ink-soft);font-size:17px}
+.hero .lede strong{color:var(--ink);font-weight:500}
+
+/* trust strip */
+.trust-strip{display:flex;justify-content:center;gap:0;flex-wrap:wrap;margin:40px auto 0;max-width:720px;border:1px solid var(--line);background:var(--surface)}
+.trust-strip div{flex:1 1 170px;padding:16px 18px;border-right:1px solid var(--line-soft);text-align:left}
+.trust-strip div:last-child{border-right:none}
+.trust-strip .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}
+.trust-strip .v{font-size:13.5px;font-weight:500;color:var(--ink)}
+
+/* triage */
+.triage{padding:64px 0 40px}
+.triage-head{text-align:center;margin-bottom:8px}
+.triage-head .eyebrow{margin-bottom:12px}
+.triage-head h3{font-family:var(--display);font-size:clamp(22px,3vw,28px);font-weight:700;letter-spacing:-.02em}
+.triage-head p{color:var(--ink-soft);font-size:15px;max-width:52ch;margin:10px auto 0}
+
+.paths{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:40px}
+.path{background:var(--surface);padding:32px 30px;display:flex;flex-direction:column;text-decoration:none;transition:background .15s}
+.path:hover{background:var(--clear-bg)}
+.path:hover.p-theft{background:var(--warn-bg)}
+.path .tag{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.path .tag::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--clear)}
+.p-theft .tag::before{background:var(--warn)}
+.path h4{font-family:var(--display);font-size:21px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px;line-height:1.15}
+.path .sub{font-size:14px;color:var(--ink-soft);margin-bottom:20px}
+.path ul{list-style:none;margin-bottom:24px}
+.path li{font-size:13.5px;color:var(--ink-soft);padding:6px 0 6px 20px;position:relative;border-top:1px solid var(--line-soft)}
+.path li:first-child{border-top:none}
+.path li::before{content:'→';position:absolute;left:0;color:var(--ink-faint);font-family:var(--mono);font-size:12px}
+.path .go{margin-top:auto;font-family:var(--body);font-size:14px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.path .go::after{content:'→';transition:transform .15s}
+.path:hover .go::after{transform:translateX(4px)}
+
+/* uncertain */
+.uncertain{text-align:center;margin-top:28px;font-size:14px;color:var(--ink-soft)}
+.uncertain a{color:var(--ink);font-weight:500;border-bottom:1px solid var(--ink-faint);text-decoration:none}
+.uncertain a:hover{border-color:var(--ink)}
+
+/* how it works */
+.how{padding:56px 0;border-top:1px solid var(--line);background:var(--surface)}
+.how h3{font-family:var(--display);font-size:clamp(22px,3vw,28px);font-weight:700;letter-spacing:-.02em;text-align:center;margin-bottom:8px}
+.how .intro{text-align:center;color:var(--ink-soft);font-size:15px;max-width:52ch;margin:0 auto 40px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:26px}
+.fact h4{font-family:var(--body);font-size:15.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:baseline;gap:8px}
+.fact h4 .n{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-weight:600}
+.fact p{font-size:14px;color:var(--ink-soft)}
+
+/* honesty */
+.honesty{padding:56px 0;border-top:1px solid var(--line)}
+.honesty .grid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.honesty h3{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:-.01em;margin-bottom:16px}
+.honesty ul{list-style:none}
+.honesty li{font-size:14px;padding:10px 0 10px 24px;position:relative;border-top:1px solid var(--line-soft)}
+.honesty li:first-child{border-top:none}
+.can li{color:var(--ink-soft)}
+.can li::before{content:'✓';position:absolute;left:0;color:var(--clear);font-weight:600}
+.cant li{color:var(--ink-soft)}
+.cant li::before{content:'—';position:absolute;left:0;color:var(--ink-faint);font-family:var(--mono)}
+.honesty strong{color:var(--ink);font-weight:600}
+
+.scam-note{margin-top:34px;border:1px solid rgba(164,48,42,.28);background:var(--crit-bg);padding:18px 22px;max-width:80ch}
+.scam-note p{font-size:14px;color:var(--ink)}
+.scam-note strong{font-weight:600;color:var(--crit)}
+
+/* support */
+.support{padding:56px 0;border-top:1px solid var(--line);background:var(--surface)}
+.support-card{max-width:640px;margin:0 auto;text-align:center;border:1px solid var(--line);background:var(--paper);padding:40px 34px}
+.support-card .eyebrow{margin-bottom:14px}
+.support-card h3{font-family:var(--display);font-size:clamp(22px,3vw,27px);font-weight:700;letter-spacing:-.02em;margin-bottom:14px}
+.support-lede{font-size:15px;color:var(--ink-soft);max-width:54ch;margin:0 auto 26px}
+.support-btn{display:inline-block;font-family:var(--body);font-size:14px;font-weight:600;color:var(--surface);background:var(--ink);border:1px solid var(--ink);padding:12px 28px;text-decoration:none;transition:opacity .15s}
+.support-btn:hover{opacity:.82}
+.support-fine{font-size:12.5px;color:var(--ink-faint);max-width:52ch;margin:20px auto 0;line-height:1.5}
+
+footer{border-top:1px solid var(--line);background:var(--surface);padding:36px 0;font-size:13px;color:var(--ink-faint)}
+footer p{max-width:74ch;margin-bottom:8px}
+footer .mono{font-family:var(--mono);font-size:11.5px}
+
+@media (max-width:640px){
+  .masthead .trust{display:none}
+  .paths{grid-template-columns:1fr}
+  .honesty .grid{grid-template-columns:1fr;gap:28px}
+  .trust-strip div{flex-basis:50%;border-bottom:1px solid var(--line-soft)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <span class="mark">WalletCheck</span>
+    <h1>WalletCheck</h1>
+    <span class="trust">Read-only · Free · No seed phrase</span>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">A free public safety tool</p>
+    <h2>Find out if your wallet is still yours.</h2>
+    <p class="lede">
+      Attackers can quietly attach a drainer to a crypto wallet, or empty it after getting hold of a device.
+      This tool checks public blockchain records, shows you what to do, and helps you report it.
+      <strong>It never asks you to connect a wallet, sign anything, or type a seed phrase.</strong>
+    </p>
+
+    <div class="trust-strip">
+      <div><div class="k">Costs</div><div class="v">Nothing, ever</div></div>
+      <div><div class="k">Reads</div><div class="v">Public records only</div></div>
+      <div><div class="k">Wants</div><div class="v">No wallet connection</div></div>
+      <div><div class="k">Recovery fee</div><div class="v">Never — that's a scam</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="triage">
+  <div class="wrap">
+    <div class="triage-head">
+      <p class="eyebrow">Start here</p>
+      <h3>What's going on?</h3>
+      <p>The right first steps depend on how the wallet was compromised. Pick the one that fits.</p>
+    </div>
+
+    <div class="paths">
+      <a class="path p-deleg" href="delegation-check.html">
+        <span class="tag">Check a wallet</span>
+        <h4>I want to check if a wallet is compromised</h4>
+        <p class="sub">Funds vanished, or you just want to make sure a wallet is clean.</p>
+        <ul>
+          <li>Checks for malicious EIP-7702 delegations</li>
+          <li>Shows the full delegation history</li>
+          <li>Tells you exactly what to do if it's hit</li>
+        </ul>
+        <span class="go">Check an address</span>
+      </a>
+
+      <a class="path p-theft" href="traced-theft-report.html">
+        <span class="tag">Report a theft</span>
+        <h4>Someone had access to my device, and my crypto is gone</h4>
+        <p class="sub">A repair shop, a support session, a shared or stolen computer.</p>
+        <ul>
+          <li>Builds reports for the exchange and the police</li>
+          <li>Walks you through the urgent first hours</li>
+          <li>Helps trace the funds to their cash-out point</li>
+        </ul>
+        <span class="go">Build a report</span>
+      </a>
+    </div>
+
+    <p class="uncertain">
+      Not sure which fits? Start with the <a href="delegation-check.html">wallet check</a> —
+      it will tell you whether a drainer is attached, and point you onward from there.
+    </p>
+  </div>
+</section>
+
+<section class="how">
+  <div class="wrap">
+    <h3>How it stays trustworthy</h3>
+    <p class="intro">A tool for people who've just been robbed has to earn trust by asking for nothing. Here's how it works.</p>
+    <div class="facts">
+      <div class="fact">
+        <h4><span class="n">01</span> You type an address</h4>
+        <p>Just the public wallet address — the same string you'd paste into a block explorer. Nothing that could move funds.</p>
+      </div>
+      <div class="fact">
+        <h4><span class="n">02</span> It reads public records</h4>
+        <p>The tool looks up delegation records that are already public on the blockchain and compares them against a list of known drainer contracts.</p>
+      </div>
+      <div class="fact">
+        <h4><span class="n">03</span> You get a plain answer</h4>
+        <p>Compromised, exposed, or nothing found — with the history laid out and clear next steps. No jargon you have to decode.</p>
+      </div>
+      <div class="fact">
+        <h4><span class="n">04</span> Nothing is stored about you</h4>
+        <p>Addresses you check aren't published. A community warning list exists, but only if you opt in, and it's removable on request.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="honesty">
+  <div class="wrap">
+    <div class="grid">
+      <div class="can">
+        <h3>What this tool can do</h3>
+        <ul>
+          <li>Detect a known <strong>malicious delegation</strong> attached to a wallet</li>
+          <li>Show you <strong>who took control and when</strong>, in a plain timeline</li>
+          <li>Give you the <strong>right first steps</strong> for your situation</li>
+          <li>Generate <strong>reports</strong> for exchanges and law enforcement</li>
+          <li>Help you <strong>warn others</strong> if you choose to</li>
+        </ul>
+      </div>
+      <div class="cant">
+        <h3>What it honestly cannot do</h3>
+        <ul>
+          <li>Tell you a wallet is <strong>safe</strong> — it only rules out one specific attack</li>
+          <li>Detect a <strong>stolen key</strong> that hasn't been used yet</li>
+          <li>Explain <strong>how</strong> your keys leaked — the chain doesn't record that</li>
+          <li>Reliably <strong>identify the attacker</strong> — that's work for investigators</li>
+          <li><strong>Recover</strong> anything — no one can reverse a settled transaction</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="scam-note">
+      <p><strong>One warning worth more than the rest:</strong> anyone who contacts you offering to recover your stolen crypto for a fee is running a second scam, aimed at people who fell for the first. No private service can reverse a blockchain transaction. Real recovery only ever happens through law enforcement and the courts — and it starts with a report, not a payment.</p>
+    </div>
+  </div>
+</section>
+
+<section class="support" id="support-link">
+  <div class="wrap">
+    <div class="support-card">
+      <p class="eyebrow">Keeping it running</p>
+      <h3>This is free, and always will be.</h3>
+      <p class="support-lede">
+        WalletCheck doesn't charge to check a wallet, and it never will — a safety tool that asks robbed
+        people for a payment isn't a safety tool. Running it costs very little: a domain and some hosting.
+        If it genuinely helped you and you'd like to chip in toward that, you're welcome to.
+        If you can't, use it freely and share it with someone who needs it — that helps just as much.
+      </p>
+      <a class="support-btn" href="REPLACE_WITH_YOUR_DONATE_LINK" target="_blank" rel="noopener noreferrer">
+        Support the hosting
+      </a>
+      <p class="support-fine">
+        Optional. Never required to use the tool. We'll never ask for a card or a payment to show you your result —
+        if any page ever does, it's not us. Funding is kept public so you can see it only covers costs.
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>WalletCheck is a free, community-maintained tool. It reads public blockchain records and never asks for a wallet connection, a signature, or a recovery phrase.</p>
+    <p>It does not identify suspects and no one should be publicly accused on the strength of what it produces. Attribution belongs to investigators who can compel records.</p>
+    <p class="mono">Not financial or legal advice.</p>
+  </div>
+</footer>
+
+</body>
+</html>

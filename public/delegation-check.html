@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallet Delegation Check</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap');
+
+:root{
+  --ink:#14181D;
+  --ink-soft:#4A5A6A;
+  --ink-faint:#8A97A3;
+  --paper:#EDF0F0;
+  --surface:#FFFFFF;
+  --line:#D3D9DC;
+  --line-soft:#E4E8E9;
+
+  --clear:#1F6F5C;
+  --clear-bg:#E6EFEC;
+  --warn:#B4761F;
+  --warn-bg:#F6EEE0;
+  --crit:#A4302A;
+  --crit-bg:#F5E6E4;
+
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--body);
+  background:var(--paper);
+  color:var(--ink);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.wrap{max-width:940px;margin:0 auto;padding:0 24px}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--line);background:var(--surface)}
+.masthead .wrap{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding-top:20px;padding-bottom:20px}
+.mark{
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--surface);background:var(--ink);
+  padding:5px 8px;
+}
+.masthead h1{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.01em}
+.masthead p{color:var(--ink-soft);font-size:14px;margin-left:auto}
+
+/* ---------- hero / scanner ---------- */
+.scanner{padding:56px 0 48px}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-soft);margin-bottom:14px;
+}
+.scanner h2{
+  font-family:var(--display);font-weight:700;letter-spacing:-.025em;
+  font-size:clamp(30px,5vw,46px);line-height:1.06;max-width:17ch;margin-bottom:16px;
+}
+.lede{max-width:60ch;color:var(--ink-soft);font-size:16px;margin-bottom:32px}
+.lede strong{color:var(--ink);font-weight:500}
+
+.console{background:var(--surface);border:1px solid var(--line);padding:24px}
+.field-row{display:flex;gap:12px;flex-wrap:wrap}
+.field{flex:1 1 300px;display:flex;flex-direction:column;gap:7px}
+.field label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.field input,.field select{
+  font-family:var(--mono);font-size:14px;color:var(--ink);
+  border:1px solid var(--line);background:var(--paper);padding:12px 13px;width:100%;
+}
+.field input:focus,.field select:focus{border-color:var(--ink);background:var(--surface)}
+.field select{flex:0 0 auto}
+.btn{
+  font-family:var(--body);font-size:14px;font-weight:600;cursor:pointer;
+  border:1px solid var(--ink);background:var(--ink);color:var(--surface);
+  padding:12px 22px;align-self:flex-end;transition:opacity .15s;
+}
+.btn:hover{opacity:.82}
+.btn[disabled]{opacity:.45;cursor:progress}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn-ghost:hover{background:var(--paper);opacity:1}
+
+.samples{margin-top:14px;font-size:13px;color:var(--ink-faint);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.samples button{
+  font-family:var(--mono);font-size:12px;background:none;border:none;cursor:pointer;
+  color:var(--ink-soft);border-bottom:1px dashed var(--line);padding:0;
+}
+.samples button:hover{color:var(--ink)}
+
+/* ---------- result ---------- */
+#result{margin-top:24px}
+.hidden{display:none !important}
+
+.status{border:1px solid var(--line);background:var(--surface)}
+.status-band{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+.status-band h3{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:-.01em}
+.status-band .tag{
+  margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;padding:4px 8px;
+}
+.s-crit .dot{background:var(--crit)} .s-crit .tag{background:var(--crit-bg);color:var(--crit)} .s-crit h3{color:var(--crit)}
+.s-warn .dot{background:var(--warn)} .s-warn .tag{background:var(--warn-bg);color:var(--warn)} .s-warn h3{color:var(--warn)}
+.s-clear .dot{background:var(--clear)} .s-clear .tag{background:var(--clear-bg);color:var(--clear)} .s-clear h3{color:var(--clear)}
+
+.status-body{padding:22px}
+.verdict{font-size:15px;max-width:68ch;margin-bottom:6px}
+.caveat{
+  font-size:13.5px;color:var(--ink-soft);background:var(--paper);
+  border-left:2px solid var(--ink-faint);padding:11px 14px;margin-top:16px;max-width:70ch;
+}
+.caveat b{color:var(--ink);font-weight:600}
+
+.meta{display:flex;gap:28px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line-soft)}
+.meta div{font-size:13px}
+.meta dt{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:3px}
+.meta dd{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+
+/* signature: delegation timeline */
+.timeline{margin-top:26px;padding-top:20px;border-top:1px solid var(--line-soft)}
+.timeline h4{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px}
+.timeline .tl-note{font-size:13px;color:var(--ink-soft);margin-bottom:20px;max-width:64ch}
+.tl{list-style:none;position:relative;padding-left:22px}
+.tl::before{content:'';position:absolute;left:4px;top:6px;bottom:6px;width:1px;background:var(--line)}
+.tl li{position:relative;padding:0 0 20px 0}
+.tl li:last-child{padding-bottom:0}
+.tl li::before{
+  content:'';position:absolute;left:-22px;top:6px;width:9px;height:9px;border-radius:50%;
+  background:var(--surface);border:2px solid var(--ink-faint);
+}
+.tl li.ev-hostile::before{background:var(--crit);border-color:var(--crit)}
+.tl li.ev-revoke::before{background:var(--surface);border-color:var(--clear)}
+.tl .when{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.03em}
+.tl .what{font-size:14px;font-weight:500;margin:1px 0 2px}
+.tl .who{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);word-break:break-all}
+.tl li.ev-hostile .what{color:var(--crit)}
+.tl li.ev-revoke .what{color:var(--clear)}
+
+.readout{
+  margin-top:22px;background:var(--crit-bg);border:1px solid rgba(164,48,42,.25);
+  padding:16px 18px;font-size:14px;max-width:72ch;
+}
+.readout b{font-weight:600}
+
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+
+/* opt-in */
+.optin{margin-top:20px;padding-top:18px;border-top:1px solid var(--line-soft)}
+.optin label{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-soft);cursor:pointer;max-width:70ch}
+.optin input{margin-top:4px;flex:0 0 auto}
+#optinConfirm{margin-top:12px;font-size:13px;color:var(--clear);font-family:var(--mono)}
+
+/* ---------- sections ---------- */
+section.block{padding:60px 0;border-top:1px solid var(--line)}
+section.block:nth-of-type(even){background:var(--surface)}
+.block h2{font-family:var(--display);font-size:clamp(24px,3.4vw,32px);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
+.block .intro{color:var(--ink-soft);max-width:64ch;margin-bottom:36px;font-size:15.5px}
+
+/* steps: real ordered sequence — order carries safety meaning */
+.steps{list-style:none;counter-reset:s}
+.steps li{
+  counter-increment:s;display:grid;grid-template-columns:52px 1fr;gap:20px;
+  padding:22px 0;border-top:1px solid var(--line-soft);
+}
+.steps li:first-child{border-top:none;padding-top:0}
+.steps li::before{
+  content:counter(s,decimal-leading-zero);
+  font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-faint);
+  letter-spacing:.06em;padding-top:3px;
+}
+.steps h3{font-family:var(--body);font-size:16.5px;font-weight:600;margin-bottom:5px}
+.steps p{font-size:14.5px;color:var(--ink-soft);max-width:62ch}
+.steps .order-warn{
+  font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--crit);margin-top:8px;display:inline-block;
+}
+
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:36px}
+.tier{background:var(--surface);padding:22px}
+section.block:nth-of-type(even) .tier{background:var(--paper)}
+.tier .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px}
+.tier h3{font-family:var(--body);font-size:16px;font-weight:600;margin-bottom:6px}
+.tier p{font-size:13.5px;color:var(--ink-soft)}
+
+/* report */
+.channels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin-bottom:34px}
+.channel{border:1px solid var(--line);background:var(--paper);padding:20px}
+section.block:nth-of-type(even) .channel{background:var(--surface)}
+.channel .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px}
+.channel h3{font-size:15.5px;font-weight:600;margin-bottom:5px}
+.channel p{font-size:13.5px;color:var(--ink-soft);margin-bottom:12px}
+.channel a{font-family:var(--mono);font-size:12px;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--ink-faint)}
+.channel a:hover{border-color:var(--ink)}
+
+.gen{border:1px solid var(--line);background:var(--surface);padding:22px}
+section.block:nth-of-type(even) .gen{background:var(--paper)}
+.gen h3{font-family:var(--body);font-size:16px;font-weight:600;margin-bottom:6px}
+.gen p{font-size:13.5px;color:var(--ink-soft);margin-bottom:16px;max-width:62ch}
+#reportOut{
+  width:100%;min-height:210px;font-family:var(--mono);font-size:12px;line-height:1.6;
+  border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:14px;resize:vertical;
+}
+section.block:nth-of-type(even) #reportOut{background:var(--surface)}
+
+/* limits */
+.limits{list-style:none;max-width:70ch}
+.limits li{padding:13px 0 13px 26px;position:relative;font-size:14.5px;color:var(--ink-soft);border-top:1px solid var(--line-soft)}
+.limits li:first-child{border-top:none}
+.limits li::before{content:'—';position:absolute;left:0;color:var(--ink-faint);font-family:var(--mono)}
+.limits strong{color:var(--ink);font-weight:600}
+
+footer{border-top:1px solid var(--line);background:var(--surface);padding:34px 0;font-size:13px;color:var(--ink-faint)}
+footer p{max-width:72ch;margin-bottom:8px}
+footer .mono{font-family:var(--mono);font-size:11.5px}
+
+@media (max-width:620px){
+  .masthead p{margin-left:0;flex-basis:100%}
+  .btn{width:100%}
+  .steps li{grid-template-columns:1fr;gap:6px}
+  .steps li::before{padding-top:0}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <span class="mark">Shield</span>
+    <h1>Wallet Delegation Check</h1>
+    <p><a href="index.html" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--line)">← Home</a> · Read-only · No wallet connection</p>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ SCANNER ============ -->
+<div class="wrap scanner">
+  <div class="eyebrow">Step one · Check your address</div>
+  <h2>Find out if your wallet has been handed to someone else.</h2>
+  <p class="lede">
+    A change to Ethereum called <strong>EIP-7702</strong> lets a wallet delegate control of itself to a smart contract.
+    Attackers use it to attach a permanent drainer to wallets whose keys they have already stolen.
+    Paste an address below. This tool only reads public blockchain records — it never asks you to connect a wallet,
+    sign anything, or enter a seed phrase. <strong>Nobody will ever need your seed phrase. Not us. Not support. Not anyone.</strong>
+  </p>
+
+  <form class="console" id="scanForm">
+    <div class="field-row">
+      <div class="field">
+        <label for="addr">Wallet address</label>
+        <input id="addr" name="addr" type="text" spellcheck="false" autocomplete="off"
+               placeholder="0x…" aria-describedby="addrHelp">
+      </div>
+      <div class="field" style="flex:0 1 170px">
+        <label for="chain">Network</label>
+        <select id="chain" name="chain">
+          <option value="all">All networks</option>
+          <option value="ethereum">Ethereum</option>
+          <option value="bsc">BNB Chain</option>
+          <option value="polygon">Polygon</option>
+        </select>
+      </div>
+      <button class="btn" type="submit" id="scanBtn">Check address</button>
+    </div>
+    <div class="samples" id="addrHelp">
+      <span>Try a known case:</span>
+      <button type="button" data-fill="0x17152Cb14DFe1A057e7cA875C9fAb0f2a7c32844">compromised (BNB Chain)</button>
+      <button type="button" data-fill="0x285101C152E8bfCC6E34D49046498197f8ef2212">revoked but exposed (Polygon)</button>
+      <button type="button" data-fill="0x0000000000000000000000000000000000000001">no delegation found</button>
+    </div>
+  </form>
+
+  <div id="result" class="hidden" aria-live="polite"></div>
+</div>
+
+<!-- ============ PROTECT ============ -->
+<section class="block" id="protect">
+  <div class="wrap">
+    <h2>If you are compromised, do these in order</h2>
+    <p class="intro">
+      The order matters more than the steps. People lose their remaining funds by moving money before they have
+      somewhere safe to move it to — or by trusting a revoke that the attacker simply undoes.
+    </p>
+
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>Do not revoke and keep using the wallet</h3>
+          <p>
+            Revoking a delegation looks like a fix and is not one. If the attacker holds your private key, they
+            re-sign a new delegation whenever they like. In the case this tool was built from, the owner revoked
+            twice and the attacker returned within days, then took another $212.
+          </p>
+          <span class="order-warn">A revoked wallet is still a compromised wallet</span>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Create a brand-new wallet on a device you trust</h3>
+          <p>
+            New seed phrase, generated fresh. If a stealer program is what took your keys, generating the new wallet on
+            the same machine hands it straight over. Use a different device if you can, and write the phrase on paper —
+            never in a photo, a notes app, a password manager field, or a chat.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Move what is left, in as few transactions as possible</h3>
+          <p>
+            Drainers watch compromised wallets and can take incoming gas before you spend it. Send the assets out in one
+            transaction where you can. Accept that some dust may be unrecoverable — do not keep topping up gas to chase it.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Abandon the old address permanently</h3>
+          <p>
+            Never receive to it again. Airdrops, refunds, staking rewards — anything that lands there is the attacker's.
+            Remove it from every profile, exchange withdrawal whitelist, and contract that pays you.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Assume everything that seed touched is exposed</h3>
+          <p>
+            One seed phrase usually derives many addresses across many networks. Check each of them here. If the phrase
+            was ever typed into a website or stored on the compromised device, every wallet from it is gone.
+          </p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="tiers">
+      <div class="tier">
+        <div class="lbl">Holding</div>
+        <h3>Hardware wallet</h3>
+        <p>
+          Keys never leave the device, so a phishing page or a stealer on your computer cannot extract them.
+          You still must read what you approve on the device screen — a hardware wallet stops key theft, not bad signatures.
+          Buy direct from the manufacturer, never from a marketplace reseller.
+        </p>
+      </div>
+      <div class="tier">
+        <div class="lbl">Experimenting</div>
+        <h3>A separate test wallet</h3>
+        <p>
+          Keep a wallet that holds only what you can afford to lose entirely, and use it for every new contract, mint,
+          claim, or site you have not used before. It is the cheapest security control that exists.
+        </p>
+      </div>
+      <div class="tier">
+        <div class="lbl">Everyday</div>
+        <h3>Check before you sign</h3>
+        <p>
+          Reach a site by a bookmark you saved yourself, not a search result, an ad, or a link in a message.
+          Treat any request to "verify", "sync", "migrate", or "re-stake" your wallet by entering your recovery
+          phrase as theft in progress. That request has no legitimate version.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REPORT ============ -->
+<section class="block" id="report">
+  <div class="wrap">
+    <h2>Report it</h2>
+    <p class="intro">
+      Reporting will rarely return your funds — be honest with yourself about that. What it does is get attacker
+      addresses flagged so the next person is warned, and build the record that lets investigators reach the
+      exchanges where stolen funds are cashed out. Identifying the human behind an address is work for law
+      enforcement, who can compel exchanges to hand over account records. It is not work for us, and guessing at
+      it in public gets innocent people hurt.
+    </p>
+
+    <div class="channels">
+      <div class="channel">
+        <div class="lbl">Law enforcement</div>
+        <h3>FBI IC3</h3>
+        <p>For US residents. Elsewhere, file with your national cybercrime unit or police fraud line — an official report number is what exchanges act on.</p>
+        <a href="https://www.ic3.gov" target="_blank" rel="noopener noreferrer">ic3.gov</a>
+      </div>
+      <div class="channel">
+        <div class="lbl">Public labelling</div>
+        <h3>Block explorers</h3>
+        <p>Ask Etherscan, BscScan and PolygonScan to tag the attacker addresses. A flagged address warns every person who looks it up afterwards.</p>
+        <a href="https://etherscan.io/contactus" target="_blank" rel="noopener noreferrer">explorer contact forms</a>
+      </div>
+      <div class="channel">
+        <div class="lbl">Industry database</div>
+        <h3>Chainabuse</h3>
+        <p>Shared reporting used by exchanges and analytics firms. Reports here reach compliance teams who can freeze deposits.</p>
+        <a href="https://www.chainabuse.com" target="_blank" rel="noopener noreferrer">chainabuse.com</a>
+      </div>
+    </div>
+
+    <div class="gen">
+      <h3>Report text</h3>
+      <p>Scan an address first and this fills in with the specific transactions and addresses found. Copy it into any of the forms above.</p>
+      <textarea id="reportOut" spellcheck="false" readonly>Run a check above to generate a report.</textarea>
+      <div class="actions">
+        <button class="btn" type="button" id="copyReport">Copy report</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIMITS ============ -->
+<section class="block" id="limits">
+  <div class="wrap">
+    <h2>What this tool cannot tell you</h2>
+    <p class="intro">A security tool that oversells itself is worse than none, because people relax.</p>
+    <ul class="limits">
+      <li><strong>A clean result is not a clean bill of health.</strong> This checks for one specific attack: a malicious EIP-7702 delegation. A stolen private key with no delegation attached yet looks identical to a safe wallet from the outside.</li>
+      <li><strong>It cannot see token approvals.</strong> A drainer that took unlimited spending permission on your tokens does not need a delegation. Check those separately with a revocation tool.</li>
+      <li><strong>It cannot tell you how your keys leaked.</strong> The blockchain records the theft, never the phishing site, the fake support agent, or the malware that caused it.</li>
+      <li><strong>It cannot identify the attacker.</strong> Wallets that drain victims are often themselves compromised wallets, chained several deep. Naming a person from on-chain data alone is how the wrong person gets blamed.</li>
+      <li><strong>It cannot recover anything.</strong> No one can reverse a settled transaction. Anyone who contacts you offering to recover your funds for a fee is running the second scam, aimed at the people who fell for the first.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Read-only. Enter an address and this queries public block explorer records. No wallet connection, no signature request, no seed phrase — ever.</p>
+    <p>Addresses you check are not published. If you tick the box to add your case to the community warning list, only the compromised address and the attacker addresses are shared, never your identity, and you can ask for removal.</p>
+    <p class="mono">Not financial or legal advice. Community-maintained.</p>
+    <p class="mono" style="margin-top:10px">Free to use, always. If it helped and you'd like to support the hosting, <a href="index.html#support-link" style="color:var(--ink-soft);border-bottom:1px solid var(--line)">you can chip in</a> — never required, and we'll never ask for payment to show your result.</p>
+  </div>
+</footer>
+
+<script>
+// ---------------------------------------------------------------
+// CONFIG — point this at your backend once deployed.
+// Leave empty to run against the built-in reference dataset.
+// ---------------------------------------------------------------
+// Same-origin in production (front end and API served from one Vercel project).
+// Leave as "" and the scanner calls /api/scan on the same domain.
+// The built-in DATASET below is only used as a fallback when the API is
+// unreachable (e.g. opening the raw file locally), so the demo still works.
+const API_BASE = "";
+
+// Known-malicious infrastructure. In production this list lives on the
+// backend so one update protects every user at once.
+const SWEEPERS = {
+  "0x4323334d79239ef30e3202f6b0dc4ae2cbf4c242": { chain:"bsc",     note:"Sweeper contract — batch delegate-and-drain" },
+  "0x717594f59b0ca8e81a201ef9c28daca608a093a3": { chain:"polygon", note:"Sweeper contract — batch delegate-and-drain" }
+};
+const NULL_ADDR = "0x0000000000000000000000000000000000000000";
+
+// Reference dataset: the two confirmed cases, for demonstration.
+const DATASET = {
+  "0x17152cb14dfe1a057e7ca875c9fab0f2a7c32844": {
+    chain:"bsc", chainName:"BNB Chain",
+    events:[
+      { when:"2026-03-08", kind:"hostile", what:"Delegated to sweeper contract", who:"Set by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x120d97521ca9204af901a7f9ca2e6d7424bd009d53251cef347db5ebfe6fcd37" },
+      { when:"2026-03-10", kind:"hostile", what:"Delegation renewed", who:"Set by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x0da3ad42724201c75b5f7f5fdc38f1d0601e92897b6e6da4fb3a1a7051fefddb" },
+      { when:"2026-03-21", kind:"revoke",  what:"Owner revoked the delegation", who:"Signed by the wallet owner", tx:"0x39aef12825fe024c6d5e5858737bd3c7f1b58572f1f0730f5a8da3c205c2ba74" },
+      { when:"2026-04-11", kind:"hostile", what:"Attacker re-delegated with a fresh signature", who:"Set by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x344e9f0ad9cb78af098fd210b9d47a309266feb8d1c1b0e940a49178c6ff92cd" },
+      { when:"2026-07-09", kind:"hostile", what:"Delegated again and 212.17 USDT swept", who:"Taken by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x92f6b970b9742a936dd77c16cc095f7360d5485cdec444b00096366f08a6c4ad" },
+      { when:"2026-07-10", kind:"revoke",  what:"Owner revoked again", who:"Signed by the wallet owner", tx:"0xfbb4445f6e7027cddd5c941f97e9588bcf36126e2d6e59938cf7b0cda0b6dc91" }
+    ],
+    delegatedNow:false,
+    reDelegations:3,
+    sweeper:"0x4323334d79239ef30e3202f6b0dc4ae2cbf4c242",
+    attacker:"0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b"
+  },
+  "0x285101c152e8bfcc6e34d49046498197f8ef2212": {
+    chain:"polygon", chainName:"Polygon",
+    events:[
+      { when:"2026-03-10", kind:"hostile", what:"Delegated to sweeper and 66.87 sLGNS swept in one transaction", who:"Set by 0xE0a4C31e35e3b080E054c548622f04464Da000Ad", tx:"0xda8dda9ee71cb084c027dbeb9efc6f65a9c2769b84017f64e9d6a1293fb89cab" },
+      { when:"2026-03-21", kind:"revoke",  what:"Owner revoked the delegation", who:"Signed by the wallet owner", tx:"0x33ad3da5928102203646fb159c7d562eabae2fd1e9fcc981369766b83325f129" }
+    ],
+    delegatedNow:false,
+    reDelegations:0,
+    sweeper:"0x717594f59b0ca8e81a201ef9c28daca608a093a3",
+    attacker:"0xE0a4C31e35e3b080E054c548622f04464Da000Ad"
+  }
+};
+
+const $ = s => document.querySelector(s);
+const isAddr = a => /^0x[a-fA-F0-9]{40}$/.test(a);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const short = a => a.slice(0,10) + "…" + a.slice(-8);
+
+// Backend contract:  POST {API_BASE}/api/scan  {address, chain}
+//   -> { status:'compromised'|'exposed'|'clear', chainName, events[], sweeper, attacker, reDelegations }
+async function scan(address, chain){
+  // Try the live API first (same origin in production, or API_BASE if set).
+  try {
+    const r = await fetch(`${API_BASE}/api/scan`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ address, chain })
+    });
+    if (r.ok) return r.json();
+    // A 4xx/5xx from a reachable API is a real answer we shouldn't mask with
+    // demo data — surface it.
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `Scan service returned ${r.status}`);
+  } catch (err) {
+    // Network failure (e.g. opening the raw file with no server) -> demo data.
+    // A live API error re-throws above and is shown to the user.
+    if (err instanceof TypeError) {
+      await new Promise(r => setTimeout(r, 400));
+      const hit = DATASET[address.toLowerCase()];
+      if (!hit) return { status:"clear" };
+      const last = hit.events[hit.events.length - 1];
+      return { ...hit, status: last.kind === "hostile" ? "compromised" : "exposed" };
+    }
+    throw err;
+  }
+}
+
+let lastScan = null;
+
+$("#scanForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const address = $("#addr").value.trim();
+  const chain = $("#chain").value;
+  const box = $("#result");
+  box.classList.remove("hidden");
+
+  if (!isAddr(address)){
+    box.innerHTML = `<div class="status s-warn"><div class="status-band">
+      <span class="dot"></span><h3>That is not a wallet address</h3><span class="tag">Check input</span></div>
+      <div class="status-body"><p class="verdict">A wallet address starts with <code>0x</code> and has 40 characters after it. Copy it from your wallet or from a block explorer.</p></div></div>`;
+    return;
+  }
+
+  $("#scanBtn").disabled = true;
+  $("#scanBtn").textContent = "Checking…";
+  box.innerHTML = `<div class="status"><div class="status-body"><p class="verdict">Reading public delegation records…</p></div></div>`;
+
+  try {
+    const res = await scan(address, chain);
+    lastScan = { address, ...res };
+    render(address, res);
+    buildReport(address, res);
+  } catch (err) {
+    box.innerHTML = `<div class="status s-warn"><div class="status-band">
+      <span class="dot"></span><h3>The check could not complete</h3><span class="tag">Try again</span></div>
+      <div class="status-body"><p class="verdict">The scan service did not respond. This says nothing about your wallet — try again shortly.</p>
+      <p class="caveat">${esc(err.message)}</p></div></div>`;
+  } finally {
+    $("#scanBtn").disabled = false;
+    $("#scanBtn").textContent = "Check address";
+  }
+});
+
+document.querySelectorAll("[data-fill]").forEach(b =>
+  b.addEventListener("click", () => {
+    $("#addr").value = b.dataset.fill;
+    $("#scanForm").requestSubmit();
+  })
+);
+
+function render(address, r){
+  const box = $("#result");
+
+  if (r.status === "clear"){
+    box.innerHTML = `
+      <div class="status s-clear">
+        <div class="status-band"><span class="dot"></span>
+          <h3>No malicious delegation found</h3><span class="tag">Nothing detected</span></div>
+        <div class="status-body">
+          <p class="verdict">This address has no EIP-7702 delegation to any contract on our known-malicious list.</p>
+          <div class="caveat">
+            <b>This does not mean the wallet is safe.</b> It means one specific attack was not detected.
+            If your recovery phrase was ever typed into a website, stored on a computer that may have malware,
+            or shared with anyone, the wallet should still be treated as compromised — attackers routinely hold
+            stolen keys for months before using them. Read the steps below.
+          </div>
+          <dl class="meta">
+            <div><dt>Address</dt><dd>${esc(address)}</dd></div>
+            <div><dt>Checked</dt><dd>${new Date().toISOString().slice(0,10)}</dd></div>
+          </dl>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const compromised = r.status === "compromised";
+  const cls = compromised ? "s-crit" : "s-warn";
+  const head = compromised ? "This wallet is compromised" : "This wallet was compromised";
+  const tag  = compromised ? "Active delegation" : "Revoked — still exposed";
+
+  const verdict = compromised
+    ? `An attacker has attached a drainer to this wallet on ${esc(r.chainName)}. It is live right now. Anything sent here can be taken in the same block it arrives.`
+    : `An attacker attached a drainer to this wallet on ${esc(r.chainName)} and assets were taken. The delegation has since been revoked, but that is not a fix.`;
+
+  const keyProof = r.reDelegations > 0
+    ? `<div class="readout">
+         <b>The attacker holds this wallet's private key.</b> The delegation was revoked and then re-attached
+         ${r.reDelegations} time${r.reDelegations>1?"s":""} with a valid new signature. Only someone holding the key
+         can produce those signatures. Revoking again will not help. This wallet must be abandoned.
+       </div>`
+    : `<div class="readout">
+         <b>Treat the private key as stolen.</b> The delegation was signed with this wallet's own key, which means
+         the key itself leaked — not just a single bad approval on a website. Revoking closes the door but the
+         attacker still has the key to it. This wallet must be abandoned.
+       </div>`;
+
+  const rows = r.events.map(e => `
+    <li class="ev-${esc(e.kind)}">
+      <div class="when">${esc(e.when)}</div>
+      <div class="what">${esc(e.what)}</div>
+      <div class="who">${esc(e.who)}</div>
+    </li>`).join("");
+
+  box.innerHTML = `
+    <div class="status ${cls}">
+      <div class="status-band"><span class="dot"></span><h3>${head}</h3><span class="tag">${tag}</span></div>
+      <div class="status-body">
+        <p class="verdict">${verdict}</p>
+        ${keyProof}
+
+        <div class="timeline">
+          <h4>Delegation history</h4>
+          <p class="tl-note">Every time control of this wallet changed hands. Red marks the attacker taking control; green marks the owner taking it back.</p>
+          <ul class="tl">${rows}</ul>
+        </div>
+
+        <dl class="meta">
+          <div><dt>Address</dt><dd>${esc(address)}</dd></div>
+          <div><dt>Network</dt><dd>${esc(r.chainName)}</dd></div>
+          <div><dt>Drainer contract</dt><dd>${esc(r.sweeper)}</dd></div>
+          <div><dt>Attacker wallet</dt><dd>${esc(r.attacker)}</dd></div>
+        </dl>
+
+        <div class="actions">
+          <a class="btn" href="#protect">What to do now</a>
+          <a class="btn btn-ghost" href="#report">Report this</a>
+        </div>
+
+        <div class="optin">
+          <label>
+            <input type="checkbox" id="optin">
+            <span>Add this case to the community warning list. Only the wallet address and the attacker's addresses
+            are published — never your name, and never anything about you. You can ask for removal at any time.
+            Leave this unticked if you would rather nobody knew this address was hit.</span>
+          </label>
+          <div id="optinConfirm"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const cb = $("#optin");
+  if (cb) cb.addEventListener("change", () => {
+    $("#optinConfirm").textContent = cb.checked
+      ? "Queued for the warning list. A maintainer will confirm before it is published."
+      : "";
+  });
+}
+
+function buildReport(address, r){
+  if (r.status === "clear"){
+    $("#reportOut").value = "No malicious delegation was found for this address, so there is nothing to report.";
+    return;
+  }
+  const lines = r.events.map(e => `  ${e.when}  ${e.what}\n             tx ${e.tx}`).join("\n");
+  $("#reportOut").value =
+`SUBJECT: Theft of cryptocurrency via malicious EIP-7702 delegation
+
+VICTIM ADDRESS
+  ${address}
+  Network: ${r.chainName}
+
+ATTACKER INFRASTRUCTURE
+  Attacker-controlled wallet: ${r.attacker}
+  Malicious delegate (drainer) contract: ${r.sweeper}
+
+WHAT HAPPENED
+  The victim's externally owned account was delegated, under EIP-7702, to an
+  attacker-controlled contract. The delegation was signed with the victim's own
+  private key, indicating the key was stolen prior to the on-chain activity.
+  The attacker paid the gas for these transactions, so the victim received no
+  prompt and no notification.
+${r.reDelegations > 0 ? `
+  The victim revoked the delegation. The attacker re-established it ${r.reDelegations} time(s)
+  using newly signed authorizations at incremented nonces, which is only possible
+  with continued possession of the private key.
+` : ""}
+ON-CHAIN TIMELINE
+${lines}
+
+REQUESTED ACTION
+  - Flag the attacker wallet and drainer contract on public block explorers.
+  - Trace outgoing transfers from the attacker wallet to any centralized exchange
+    deposit address and preserve the associated account records.
+
+  Reporting party: [your name / community]
+  Contact: [your email]
+  Date: ${new Date().toISOString().slice(0,10)}`;
+}
+
+$("#copyReport").addEventListener("click", async () => {
+  const t = $("#reportOut");
+  const btn = $("#copyReport");
+  try {
+    await navigator.clipboard.writeText(t.value);
+  } catch {
+    t.removeAttribute("readonly"); t.select(); document.execCommand("copy"); t.setAttribute("readonly","");
+  }
+  btn.textContent = "Copied";
+  setTimeout(() => btn.textContent = "Copy report", 1600);
+});
+</script>
+</body>
+</html>

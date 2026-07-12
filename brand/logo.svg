@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MyWalletCheck logo">
+  <!-- background -->
+  <circle cx="256" cy="256" r="256" fill="#14181D"/>
+  <!-- shield -->
+  <path d="M256 122
+           C300 144 344 154 356 156
+           L356 268
+           C356 336 314 380 256 404
+           C198 380 156 336 156 268
+           L156 156
+           C168 154 212 144 256 122 Z"
+        fill="#EDF0F0"/>
+  <!-- check -->
+  <path d="M206 260 L242 298 L312 222"
+        fill="none" stroke="#1F6F5C" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

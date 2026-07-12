@@ -1,0 +1,14 @@
+{
+  "name": "walletcheck",
+  "version": "1.0.0",
+  "description": "Read-only public tool: check a wallet for malicious EIP-7702 delegations, harden it, and report theft to authorities.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@vercel/kv": "^1.0.1"
+  }
+}
