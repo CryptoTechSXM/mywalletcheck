@@ -578,9 +578,16 @@ function perChainTable(r){
   const rows = r.perChain.map(c => {
     const col = color[c.status] || "var(--ink-soft)";
     const strong = (c.status === "compromised") ? "font-weight:600;" : "";
+    // For any delegated chain, show the specific contract underneath so a
+    // multi-chain compromise lists every drainer (needed for reports), each
+    // beside its own chain rather than only the single top-level one.
+    const contract = c.delegate
+      ? `<div style="font-family:var(--mono);font-size:11px;color:${col};margin-top:2px;word-break:break-all">${esc(c.delegate)}</div>`
+      : "";
     return `<div>
       <dt style="color:${col}">${esc(c.chainName)}</dt>
       <dd style="color:${col};${strong}">${esc(label[c.status] || c.status)}</dd>
+      ${contract}
     </div>`;
   }).join("");
   return `<dl class="meta">${rows}</dl>`;
@@ -742,17 +749,28 @@ function buildReport(address, r){
     "past-delegation": "Not currently delegated, but EIP-7702 activity found in history (possible past delegation).",
   }[r.status] || "Delegation state noted below.";
 
+  // List every affected chain and its specific contract, so a multi-chain
+  // compromise produces a complete report rather than only the primary chain.
+  const affected = (r.perChain || []).filter(c =>
+    c.status === "compromised" || c.status === "delegated-unknown");
+  const affectedBlock = affected.length
+    ? affected.map(c =>
+        `  - ${c.chainName}: ${c.status === "compromised" ? "KNOWN MALICIOUS drainer" : "unrecognized contract"}\n` +
+        `      Delegate contract: ${c.delegate || "n/a"}`
+      ).join("\n")
+    : (r.delegate ? `  - ${r.chainName}: ${r.delegate}` : "  (see delegation state above)");
+
   $("#reportOut").value =
 `SUBJECT: Suspected cryptocurrency theft via EIP-7702 wallet delegation
 
 VICTIM ADDRESS
   ${address}
-  Network: ${r.chainName}
 
 DELEGATION STATE
   ${stateLine}
-${r.delegate ? `  Delegate contract: ${r.delegate}
-  Classification: ${r.delegateLabel || "unrecognized"}` : ""}
+
+AFFECTED NETWORKS AND DELEGATE CONTRACTS
+${affectedBlock}
 
 WHAT THIS MEANS
   Under EIP-7702, an externally owned account can delegate control of itself to
@@ -762,7 +780,7 @@ WHAT THIS MEANS
   gas themselves, so the victim receives no prompt and no notification.
 
 REQUESTED ACTION
-  - Flag the delegate contract above on public block explorers if malicious.
+  - Flag the delegate contract(s) above on public block explorers if malicious.
   - Preserve records for any centralized-exchange deposit addresses that received
     funds from this wallet, pending legal process.
   - Note: current on-chain state was read directly; a full historical timeline of
