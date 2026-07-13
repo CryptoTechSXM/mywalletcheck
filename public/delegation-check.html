@@ -575,6 +575,14 @@ document.querySelectorAll("[data-fill]").forEach(b =>
 function render(address, r){
   const box = $("#result");
 
+  // If some networks couldn't be checked, show a note. Absence of a finding on
+  // an unchecked chain is NOT evidence of safety — say so plainly.
+  const partial = (r.unchecked && r.unchecked.length)
+    ? `<div class="caveat"><b>Partial check.</b> We couldn't reach ${esc(r.unchecked.join(", "))} this time,
+       so this result only covers the networks we could read. A wallet can be compromised on a network we
+       didn't check — try again shortly to cover the rest.</div>`
+    : "";
+
   if (r.status === "clear"){
     box.innerHTML = `
       <div class="status s-clear">
@@ -582,6 +590,7 @@ function render(address, r){
           <h3>No malicious delegation found</h3><span class="tag">Nothing detected</span></div>
         <div class="status-body">
           <p class="verdict">This address has no EIP-7702 delegation to any contract on our known-malicious list.</p>
+          ${partial}
           <div class="caveat">
             <b>This does not mean the wallet is safe.</b> It means one specific attack was not detected.
             If your recovery phrase was ever typed into a website, stored on a computer that may have malware,
@@ -630,6 +639,7 @@ function render(address, r){
       <div class="status-band"><span class="dot"></span><h3>${head}</h3><span class="tag">${tag}</span></div>
       <div class="status-body">
         <p class="verdict">${verdict}</p>
+        ${partial}
         ${keyProof}
 
         <div class="timeline">
