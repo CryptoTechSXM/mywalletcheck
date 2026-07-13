@@ -277,7 +277,7 @@ footer .mono{font-family:var(--mono);font-size:11.5px}
     <div class="samples" id="addrHelp">
       <span>Try a known case:</span>
       <button type="button" data-fill="0x17152Cb14DFe1A057e7cA875C9fAb0f2a7c32844">compromised (BNB Chain)</button>
-      <button type="button" data-fill="0x285101C152E8bfCC6E34D49046498197f8ef2212">revoked but exposed (Polygon)</button>
+      <button type="button" data-fill="0x285101C152E8bfCC6E34D49046498197f8ef2212">possible past delegation (Polygon)</button>
       <button type="button" data-fill="0x0000000000000000000000000000000000000001">no delegation found</button>
     </div>
   </form>
@@ -457,41 +457,20 @@ footer .mono{font-family:var(--mono);font-size:11.5px}
 // unreachable (e.g. opening the raw file locally), so the demo still works.
 const API_BASE = "";
 
-// Known-malicious infrastructure. In production this list lives on the
-// backend so one update protects every user at once.
-const SWEEPERS = {
-  "0x4323334d79239ef30e3202f6b0dc4ae2cbf4c242": { chain:"bsc",     note:"Sweeper contract — batch delegate-and-drain" },
-  "0x717594f59b0ca8e81a201ef9c28daca608a093a3": { chain:"polygon", note:"Sweeper contract — batch delegate-and-drain" }
-};
-const NULL_ADDR = "0x0000000000000000000000000000000000000000";
-
-// Reference dataset: the two confirmed cases, for demonstration.
+// Demo fallback, used only if the live API is unreachable (e.g. opening the raw
+// file with no server). Represents CURRENT delegation state, matching the live
+// backend's shape.
 const DATASET = {
+  // A wallet currently delegated to a known drainer.
   "0x17152cb14dfe1a057e7ca875c9fab0f2a7c32844": {
-    chain:"bsc", chainName:"BNB Chain",
-    events:[
-      { when:"2026-03-08", kind:"hostile", what:"Delegated to sweeper contract", who:"Set by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x120d97521ca9204af901a7f9ca2e6d7424bd009d53251cef347db5ebfe6fcd37" },
-      { when:"2026-03-10", kind:"hostile", what:"Delegation renewed", who:"Set by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x0da3ad42724201c75b5f7f5fdc38f1d0601e92897b6e6da4fb3a1a7051fefddb" },
-      { when:"2026-03-21", kind:"revoke",  what:"Owner revoked the delegation", who:"Signed by the wallet owner", tx:"0x39aef12825fe024c6d5e5858737bd3c7f1b58572f1f0730f5a8da3c205c2ba74" },
-      { when:"2026-04-11", kind:"hostile", what:"Attacker re-delegated with a fresh signature", who:"Set by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x344e9f0ad9cb78af098fd210b9d47a309266feb8d1c1b0e940a49178c6ff92cd" },
-      { when:"2026-07-09", kind:"hostile", what:"Delegated again and 212.17 USDT swept", who:"Taken by 0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b", tx:"0x92f6b970b9742a936dd77c16cc095f7360d5485cdec444b00096366f08a6c4ad" },
-      { when:"2026-07-10", kind:"revoke",  what:"Owner revoked again", who:"Signed by the wallet owner", tx:"0xfbb4445f6e7027cddd5c941f97e9588bcf36126e2d6e59938cf7b0cda0b6dc91" }
-    ],
-    delegatedNow:false,
-    reDelegations:3,
-    sweeper:"0x4323334d79239ef30e3202f6b0dc4ae2cbf4c242",
-    attacker:"0xB130E33991cD4B8fcB0a98A7A1551644eA3b674b"
+    status:"compromised", chainName:"BNB Chain", delegated:true,
+    delegate:"0x4323334d79239ef30e3202f6b0dc4ae2cbf4c242",
+    delegateLabel:"Known drainer contract"
   },
+  // A wallet not delegated now, but with past EIP-7702 activity.
   "0x285101c152e8bfcc6e34d49046498197f8ef2212": {
-    chain:"polygon", chainName:"Polygon",
-    events:[
-      { when:"2026-03-10", kind:"hostile", what:"Delegated to sweeper and 66.87 sLGNS swept in one transaction", who:"Set by 0xE0a4C31e35e3b080E054c548622f04464Da000Ad", tx:"0xda8dda9ee71cb084c027dbeb9efc6f65a9c2769b84017f64e9d6a1293fb89cab" },
-      { when:"2026-03-21", kind:"revoke",  what:"Owner revoked the delegation", who:"Signed by the wallet owner", tx:"0x33ad3da5928102203646fb159c7d562eabae2fd1e9fcc981369766b83325f129" }
-    ],
-    delegatedNow:false,
-    reDelegations:0,
-    sweeper:"0x717594f59b0ca8e81a201ef9c28daca608a093a3",
-    attacker:"0xE0a4C31e35e3b080E054c548622f04464Da000Ad"
+    status:"past-delegation", chainName:"Polygon", delegated:false,
+    delegate:null, pastSignal:true
   }
 };
 
@@ -501,9 +480,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const short = a => a.slice(0,10) + "…" + a.slice(-8);
 
 // Backend contract:  POST {API_BASE}/api/scan  {address, chain}
-//   -> { status:'compromised'|'exposed'|'clear', chainName, events[], sweeper, attacker, reDelegations }
+//   -> { status, chainName, delegated, delegate, delegateLabel, pastSignal, unchecked, perChain }
 async function scan(address, chain){
-  // Try the live API first (same origin in production, or API_BASE if set).
   try {
     const r = await fetch(`${API_BASE}/api/scan`, {
       method:"POST",
@@ -511,19 +489,15 @@ async function scan(address, chain){
       body: JSON.stringify({ address, chain })
     });
     if (r.ok) return r.json();
-    // A 4xx/5xx from a reachable API is a real answer we shouldn't mask with
-    // demo data — surface it.
     const body = await r.json().catch(() => ({}));
     throw new Error(body.error || `Scan service returned ${r.status}`);
   } catch (err) {
-    // Network failure (e.g. opening the raw file with no server) -> demo data.
-    // A live API error re-throws above and is shown to the user.
+    // Network failure (no server) -> demo data. A live API error re-throws.
     if (err instanceof TypeError) {
       await new Promise(r => setTimeout(r, 400));
       const hit = DATASET[address.toLowerCase()];
-      if (!hit) return { status:"clear" };
-      const last = hit.events[hit.events.length - 1];
-      return { ...hit, status: last.kind === "hostile" ? "compromised" : "exposed" };
+      if (!hit) return { status:"clear", chainName:"(demo)" };
+      return { ...hit };
     }
     throw err;
   }
@@ -572,149 +546,212 @@ document.querySelectorAll("[data-fill]").forEach(b =>
   })
 );
 
+// Human-readable "possible past delegation" line, shown when relevant.
+function pastNote(r){
+  if (r.pastSignal === true)
+    return `<div class="caveat"><b>Possible past delegation.</b> This address has EIP-7702 transaction
+      activity in its history, which suggests it may have been delegated before, even though nothing is
+      active now. This is a best-effort signal, not a guarantee.</div>`;
+  return "";
+}
+
+// Per-network summary so the user sees what was found on each chain.
+function perChainTable(r){
+  if (!r.perChain || r.perChain.length < 2) return "";
+  const label = {
+    compromised: "Delegated to a known drainer",
+    "delegated-unknown": "Delegated to an unrecognized contract",
+    "delegated-benign": "Delegated to a legitimate contract",
+    "past-delegation": "Not delegated now (possible past activity)",
+    clear: "No delegation found",
+  };
+  const rows = r.perChain.map(c =>
+    `<div><dt>${esc(c.chainName)}</dt><dd>${esc(label[c.status] || c.status)}</dd></div>`
+  ).join("");
+  return `<dl class="meta">${rows}</dl>`;
+}
+
 function render(address, r){
   const box = $("#result");
 
-  // If some networks couldn't be checked, show a note. Absence of a finding on
-  // an unchecked chain is NOT evidence of safety — say so plainly.
+  // If some networks couldn't be checked, say so plainly. Absence of a finding
+  // on an unchecked chain is NOT evidence of safety.
   const partial = (r.unchecked && r.unchecked.length)
     ? `<div class="caveat"><b>Partial check.</b> We couldn't reach ${esc(r.unchecked.join(", "))} this time,
        so this result only covers the networks we could read. A wallet can be compromised on a network we
        didn't check — try again shortly to cover the rest.</div>`
     : "";
 
-  if (r.status === "clear"){
+  const meta = `
+    <dl class="meta">
+      <div><dt>Address</dt><dd>${esc(address)}</dd></div>
+      <div><dt>Network</dt><dd>${esc(r.chainName)}</dd></div>
+      ${r.delegate ? `<div><dt>Delegated to</dt><dd>${esc(r.delegate)}</dd></div>` : ""}
+      <div><dt>Checked</dt><dd>${new Date().toISOString().slice(0,10)}</dd></div>
+    </dl>`;
+
+  const actions = `
+    <div class="actions">
+      <a class="btn" href="#protect">What to do now</a>
+      <a class="btn btn-ghost" href="#report">Report this</a>
+    </div>`;
+
+  // ---- COMPROMISED: delegated to a known drainer, right now ----
+  if (r.status === "compromised"){
     box.innerHTML = `
-      <div class="status s-clear">
+      <div class="status s-crit">
         <div class="status-band"><span class="dot"></span>
-          <h3>No malicious delegation found</h3><span class="tag">Nothing detected</span></div>
+          <h3>This wallet is compromised</h3><span class="tag">Active malicious delegation</span></div>
         <div class="status-body">
-          <p class="verdict">This address has no EIP-7702 delegation to any contract on our known-malicious list.</p>
+          <p class="verdict">This wallet is currently delegated to a known drainer contract on
+            ${esc(r.chainName)}. The delegation is live right now — anything sent to this wallet can be
+            taken in the same block it arrives.</p>
           ${partial}
-          <div class="caveat">
-            <b>This does not mean the wallet is safe.</b> It means one specific attack was not detected.
-            If your recovery phrase was ever typed into a website, stored on a computer that may have malware,
-            or shared with anyone, the wallet should still be treated as compromised — attackers routinely hold
-            stolen keys for months before using them. Read the steps below.
+          <div class="readout">
+            <b>Treat the private key as stolen and abandon this wallet.</b> A malicious delegation like this
+            is set with the wallet's own key, which means the key itself has leaked. Revoking closes this
+            door, but whoever holds the key can re-delegate at any time. Move anything of value to a brand-new
+            wallet on a clean device, and never use this address again.
           </div>
-          <dl class="meta">
-            <div><dt>Address</dt><dd>${esc(address)}</dd></div>
-            <div><dt>Checked</dt><dd>${new Date().toISOString().slice(0,10)}</dd></div>
-          </dl>
+          <p class="verdict" style="margin-top:16px"><b>Delegate contract:</b> ${esc(r.delegate)}<br>
+            <span style="color:var(--ink-soft)">${esc(r.delegateLabel || "")}</span></p>
+          ${perChainTable(r)}
+          ${meta}
+          ${actions}
         </div>
       </div>`;
     return;
   }
 
-  const compromised = r.status === "compromised";
-  const cls = compromised ? "s-crit" : "s-warn";
-  const head = compromised ? "This wallet is compromised" : "This wallet was compromised";
-  const tag  = compromised ? "Active delegation" : "Revoked — still exposed";
+  // ---- DELEGATED-UNKNOWN: delegated to something we can't vouch for ----
+  if (r.status === "delegated-unknown"){
+    box.innerHTML = `
+      <div class="status s-warn">
+        <div class="status-band"><span class="dot"></span>
+          <h3>Delegated — needs your attention</h3><span class="tag">Unrecognized delegate</span></div>
+        <div class="status-body">
+          <p class="verdict">This wallet is currently delegated to a contract on ${esc(r.chainName)} that is
+            not on our known-malicious list, but also not one we recognize as a legitimate wallet delegator.
+            That doesn't prove it's harmful — but you should be sure you set it up on purpose.</p>
+          ${partial}
+          <div class="caveat">
+            <b>If you didn't intentionally delegate this wallet, treat it as compromised.</b> Check what this
+            contract is before trusting it. If you don't recognize it, move your assets to a new wallet.
+          </div>
+          <p class="verdict" style="margin-top:16px"><b>Delegate contract:</b> ${esc(r.delegate)}</p>
+          ${perChainTable(r)}
+          ${meta}
+          ${actions}
+        </div>
+      </div>`;
+    return;
+  }
 
-  const verdict = compromised
-    ? `An attacker has attached a drainer to this wallet on ${esc(r.chainName)}. It is live right now. Anything sent here can be taken in the same block it arrives.`
-    : `An attacker attached a drainer to this wallet on ${esc(r.chainName)} and assets were taken. The delegation has since been revoked, but that is not a fix.`;
+  // ---- DELEGATED-BENIGN: delegated to a recognized legitimate contract ----
+  if (r.status === "delegated-benign"){
+    box.innerHTML = `
+      <div class="status s-clear">
+        <div class="status-band"><span class="dot"></span>
+          <h3>Delegated to a legitimate contract</h3><span class="tag">Recognized delegate</span></div>
+        <div class="status-body">
+          <p class="verdict">This wallet is delegated on ${esc(r.chainName)} to ${esc(r.delegateLabel)},
+            a recognized, legitimate delegator. This is normal for modern smart-wallet features and is not a
+            sign of compromise.</p>
+          ${partial}
+          <div class="caveat">
+            <b>Still worth a sanity check.</b> If you don't remember enabling smart-wallet features, confirm
+            with your wallet provider. Legitimate delegation is safe, but you should always know why your
+            wallet is delegated.
+          </div>
+          ${perChainTable(r)}
+          ${meta}
+        </div>
+      </div>`;
+    return;
+  }
 
-  const keyProof = r.reDelegations > 0
-    ? `<div class="readout">
-         <b>The attacker holds this wallet's private key.</b> The delegation was revoked and then re-attached
-         ${r.reDelegations} time${r.reDelegations>1?"s":""} with a valid new signature. Only someone holding the key
-         can produce those signatures. Revoking again will not help. This wallet must be abandoned.
-       </div>`
-    : `<div class="readout">
-         <b>Treat the private key as stolen.</b> The delegation was signed with this wallet's own key, which means
-         the key itself leaked — not just a single bad approval on a website. Revoking closes the door but the
-         attacker still has the key to it. This wallet must be abandoned.
-       </div>`;
+  // ---- PAST-DELEGATION: not delegated now, but history suggests it was ----
+  if (r.status === "past-delegation"){
+    box.innerHTML = `
+      <div class="status s-warn">
+        <div class="status-band"><span class="dot"></span>
+          <h3>Not delegated now — but possibly was before</h3><span class="tag">Past activity</span></div>
+        <div class="status-body">
+          <p class="verdict">This wallet has no active EIP-7702 delegation on ${esc(r.chainName)} right now.
+            However, its history shows EIP-7702 activity, which suggests it may have been delegated in the
+            past and since revoked.</p>
+          ${partial}
+          <div class="caveat">
+            <b>A revoked delegation is not the same as a safe wallet.</b> If this wallet was ever delegated to
+            something you didn't set up — or if your recovery phrase was ever exposed — the key may still be
+            compromised. When in doubt, move to a fresh wallet.
+          </div>
+          ${perChainTable(r)}
+          ${meta}
+          ${actions}
+        </div>
+      </div>`;
+    return;
+  }
 
-  const rows = r.events.map(e => `
-    <li class="ev-${esc(e.kind)}">
-      <div class="when">${esc(e.when)}</div>
-      <div class="what">${esc(e.what)}</div>
-      <div class="who">${esc(e.who)}</div>
-    </li>`).join("");
-
+  // ---- CLEAR: no delegation, no past signal ----
   box.innerHTML = `
-    <div class="status ${cls}">
-      <div class="status-band"><span class="dot"></span><h3>${head}</h3><span class="tag">${tag}</span></div>
+    <div class="status s-clear">
+      <div class="status-band"><span class="dot"></span>
+        <h3>No delegation found</h3><span class="tag">Nothing detected</span></div>
       <div class="status-body">
-        <p class="verdict">${verdict}</p>
+        <p class="verdict">This address has no active EIP-7702 delegation on the network(s) we checked, and no
+          sign of past delegation activity.</p>
         ${partial}
-        ${keyProof}
-
-        <div class="timeline">
-          <h4>Delegation history</h4>
-          <p class="tl-note">Every time control of this wallet changed hands. Red marks the attacker taking control; green marks the owner taking it back.</p>
-          <ul class="tl">${rows}</ul>
+        <div class="caveat">
+          <b>This does not mean the wallet is safe.</b> It means one specific attack was not detected. If your
+          recovery phrase was ever typed into a website, stored on a computer that may have malware, or shared
+          with anyone, the wallet should still be treated as compromised — attackers routinely hold stolen keys
+          for months before using them. Read the steps below.
         </div>
-
-        <dl class="meta">
-          <div><dt>Address</dt><dd>${esc(address)}</dd></div>
-          <div><dt>Network</dt><dd>${esc(r.chainName)}</dd></div>
-          <div><dt>Drainer contract</dt><dd>${esc(r.sweeper)}</dd></div>
-          <div><dt>Attacker wallet</dt><dd>${esc(r.attacker)}</dd></div>
-        </dl>
-
-        <div class="actions">
-          <a class="btn" href="#protect">What to do now</a>
-          <a class="btn btn-ghost" href="#report">Report this</a>
-        </div>
-
-        <div class="optin">
-          <label>
-            <input type="checkbox" id="optin">
-            <span>Add this case to the community warning list. Only the wallet address and the attacker's addresses
-            are published — never your name, and never anything about you. You can ask for removal at any time.
-            Leave this unticked if you would rather nobody knew this address was hit.</span>
-          </label>
-          <div id="optinConfirm"></div>
-        </div>
+        ${perChainTable(r)}
+        ${meta}
       </div>
     </div>`;
-
-  const cb = $("#optin");
-  if (cb) cb.addEventListener("change", () => {
-    $("#optinConfirm").textContent = cb.checked
-      ? "Queued for the warning list. A maintainer will confirm before it is published."
-      : "";
-  });
 }
 
 function buildReport(address, r){
-  if (r.status === "clear"){
-    $("#reportOut").value = "No malicious delegation was found for this address, so there is nothing to report.";
+  if (r.status === "clear" || r.status === "delegated-benign"){
+    $("#reportOut").value = "No malicious or unrecognized delegation was found for this address, so there is nothing to report.";
     return;
   }
-  const lines = r.events.map(e => `  ${e.when}  ${e.what}\n             tx ${e.tx}`).join("\n");
+
+  const stateLine = {
+    compromised: "Currently delegated to a KNOWN MALICIOUS drainer contract.",
+    "delegated-unknown": "Currently delegated to an unrecognized contract (not verified safe).",
+    "past-delegation": "Not currently delegated, but EIP-7702 activity found in history (possible past delegation).",
+  }[r.status] || "Delegation state noted below.";
+
   $("#reportOut").value =
-`SUBJECT: Theft of cryptocurrency via malicious EIP-7702 delegation
+`SUBJECT: Suspected cryptocurrency theft via EIP-7702 wallet delegation
 
 VICTIM ADDRESS
   ${address}
   Network: ${r.chainName}
 
-ATTACKER INFRASTRUCTURE
-  Attacker-controlled wallet: ${r.attacker}
-  Malicious delegate (drainer) contract: ${r.sweeper}
+DELEGATION STATE
+  ${stateLine}
+${r.delegate ? `  Delegate contract: ${r.delegate}
+  Classification: ${r.delegateLabel || "unrecognized"}` : ""}
 
-WHAT HAPPENED
-  The victim's externally owned account was delegated, under EIP-7702, to an
-  attacker-controlled contract. The delegation was signed with the victim's own
-  private key, indicating the key was stolen prior to the on-chain activity.
-  The attacker paid the gas for these transactions, so the victim received no
-  prompt and no notification.
-${r.reDelegations > 0 ? `
-  The victim revoked the delegation. The attacker re-established it ${r.reDelegations} time(s)
-  using newly signed authorizations at incremented nonces, which is only possible
-  with continued possession of the private key.
-` : ""}
-ON-CHAIN TIMELINE
-${lines}
+WHAT THIS MEANS
+  Under EIP-7702, an externally owned account can delegate control of itself to
+  a smart contract. When that contract is a known drainer, or is unrecognized
+  and unintended, it indicates the account's private key was compromised: a
+  delegation is authorized by the account's own key. Attackers commonly pay the
+  gas themselves, so the victim receives no prompt and no notification.
 
 REQUESTED ACTION
-  - Flag the attacker wallet and drainer contract on public block explorers.
-  - Trace outgoing transfers from the attacker wallet to any centralized exchange
-    deposit address and preserve the associated account records.
+  - Flag the delegate contract above on public block explorers if malicious.
+  - Preserve records for any centralized-exchange deposit addresses that received
+    funds from this wallet, pending legal process.
+  - Note: current on-chain state was read directly; a full historical timeline of
+    delegations and asset outflows may require a blockchain forensic analyst.
 
   Reporting party: [your name / community]
   Contact: [your email]
