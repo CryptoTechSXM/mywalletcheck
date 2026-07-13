@@ -557,8 +557,8 @@ function pastNote(r){
 }
 
 // Per-network summary so the user sees what was found on each chain.
-// Rows are colour-coded by severity so a compromised chain jumps out visually
-// — a scared user shouldn't have to read each line to spot the danger.
+// Affected chains are grouped together and shown first so the danger reads as
+// one distinct block, separated from the clean chains below.
 function perChainTable(r){
   if (!r.perChain || r.perChain.length < 2) return "";
   const label = {
@@ -575,12 +575,14 @@ function perChainTable(r){
     "delegated-benign": "var(--clear)",
     clear: "var(--ink-faint)",
   };
-  const rows = r.perChain.map(c => {
+
+  const isAffected = (s) => s === "compromised" || s === "delegated-unknown" || s === "past-delegation";
+  const affected = r.perChain.filter(c => isAffected(c.status));
+  const clean = r.perChain.filter(c => !isAffected(c.status));
+
+  const cell = (c) => {
     const col = color[c.status] || "var(--ink-soft)";
     const strong = (c.status === "compromised") ? "font-weight:600;" : "";
-    // For any delegated chain, show the specific contract underneath so a
-    // multi-chain compromise lists every drainer (needed for reports), each
-    // beside its own chain rather than only the single top-level one.
     const contract = c.delegate
       ? `<div style="font-family:var(--mono);font-size:11px;color:${col};margin-top:2px;word-break:break-all">${esc(c.delegate)}</div>`
       : "";
@@ -589,8 +591,18 @@ function perChainTable(r){
       <dd style="color:${col};${strong}">${esc(label[c.status] || c.status)}</dd>
       ${contract}
     </div>`;
-  }).join("");
-  return `<dl class="meta">${rows}</dl>`;
+  };
+
+  let out = "";
+  if (affected.length){
+    out += `<div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--crit);margin-top:18px;margin-bottom:2px">Affected networks</div>`;
+    out += `<dl class="meta" style="border-top:1px solid rgba(164,48,42,.25);padding-top:10px">${affected.map(cell).join("")}</dl>`;
+  }
+  if (clean.length){
+    out += `<div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:20px;margin-bottom:2px">Other networks checked</div>`;
+    out += `<dl class="meta" style="padding-top:10px">${clean.map(cell).join("")}</dl>`;
+  }
+  return out;
 }
 
 function render(address, r){
