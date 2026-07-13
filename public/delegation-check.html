@@ -557,6 +557,8 @@ function pastNote(r){
 }
 
 // Per-network summary so the user sees what was found on each chain.
+// Rows are colour-coded by severity so a compromised chain jumps out visually
+// — a scared user shouldn't have to read each line to spot the danger.
 function perChainTable(r){
   if (!r.perChain || r.perChain.length < 2) return "";
   const label = {
@@ -566,9 +568,21 @@ function perChainTable(r){
     "past-delegation": "Not delegated now (possible past activity)",
     clear: "No delegation found",
   };
-  const rows = r.perChain.map(c =>
-    `<div><dt>${esc(c.chainName)}</dt><dd>${esc(label[c.status] || c.status)}</dd></div>`
-  ).join("");
+  const color = {
+    compromised: "var(--crit)",
+    "delegated-unknown": "var(--warn)",
+    "past-delegation": "var(--warn)",
+    "delegated-benign": "var(--clear)",
+    clear: "var(--ink-faint)",
+  };
+  const rows = r.perChain.map(c => {
+    const col = color[c.status] || "var(--ink-soft)";
+    const strong = (c.status === "compromised") ? "font-weight:600;" : "";
+    return `<div>
+      <dt style="color:${col}">${esc(c.chainName)}</dt>
+      <dd style="color:${col};${strong}">${esc(label[c.status] || c.status)}</dd>
+    </div>`;
+  }).join("");
   return `<dl class="meta">${rows}</dl>`;
 }
 
