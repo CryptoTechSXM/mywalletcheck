@@ -25,6 +25,12 @@
       "firstSeen": "2025-06-09",
       "note": "CrimeEnjoyor sweeper (Delegator 7). Auto-sweeps incoming ETH/BNB from compromised addresses.",
       "evidence": "Verified contract on Etherscan with official Wintermute report banner: 'used in sweeping funds from compromised wallets. Reported by Wintermute.'"
+    },
+    "0x237239ab4d39aa53cfde477c7d8be75cd69e89c0": {
+      "chain": "base",
+      "firstSeen": "2026-07-13",
+      "note": "Base sweeper used by the same actor behind BSC sweeper 0x4323334d... Batch value-transfer (sweep) logic; delegation-designed; 5+ identical-bytecode copies deployed.",
+      "evidence": "Same victim (0x9348E170...) delegated on BNB Chain to confirmed sweeper 0x4323334d79239ef30e3202f6b0dc4ae2cbf4c242 AND on Base to this contract. Unverified source, but decompiled bytecode shows batch-sweep pattern with 5+ identical copies (CrimeEnjoyor-style mass reuse)."
     }
   }
 }
